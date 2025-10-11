@@ -1,6 +1,6 @@
 use crate::driver::{self, read_mmio, write_mmio};
 
-struct GPIODriver {}
+pub struct GPIODriver {}
 
 pub enum GPIOPinMode {
     Input,
@@ -131,4 +131,3 @@ impl GPIODriver {
         }
     }
 }
-

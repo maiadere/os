@@ -1,4 +1,5 @@
 pub mod gpio;
+pub mod miniuart;
 
 pub unsafe fn write_mmio(addr: u64, value: u32) -> () {
     unsafe { (addr as *mut u32).write_volatile(value) }
