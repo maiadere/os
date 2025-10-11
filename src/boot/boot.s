@@ -16,7 +16,7 @@
 _start:
     mrs x0, MPIDR_EL1
     and x0, x0, {CORE_ID_BITMASK}
-    ldr x1, {BOOT_CORE_ID}
+    mov x1, {BOOT_CORE_ID}
     cmp x0, x1
     // all non boot cores will jump into the parking loop
     b.ne .L_parking_loop

@@ -3,7 +3,7 @@ use core::arch::global_asm;
 global_asm!(include_str!(
     "./boot/boot.s"),
     CORE_ID_BITMASK = const 0b11,
-    BOOT_CORE_ID = const 0
+    BOOT_CORE_ID = const 0b0
 );
 
 // called from the handwritten assembly then jumps into the kernel entrypoint
