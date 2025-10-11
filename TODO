@@ -1,0 +1,2 @@
+hide drivers behind mutexes (duh)
+add memory barriers in driver code when switching between peripherals being addressed as per section 1.3 in the bcm2711 manual
