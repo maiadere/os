@@ -1,1 +1,5 @@
-//use aarch64_cpu::asm;
+pub fn spin_forever() -> ! {
+    loop {
+        aarch64_cpu::asm::wfe();
+    }
+}

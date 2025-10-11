@@ -7,9 +7,8 @@ mod cpu;
 use core::panic::PanicInfo;
 
 unsafe fn kernel_init() -> ! {
-    loop {}
+    cpu::spin_forever()
 }
-
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     unimplemented!()

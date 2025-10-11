@@ -17,3 +17,4 @@ name = "kernel"
 path = "src/main.rs"
 
 [dependencies]
+aarch64-cpu = "10.0.0"
