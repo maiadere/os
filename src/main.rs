@@ -1,15 +1,15 @@
 #![no_main]
 #![no_std]
 
-mod bsp;
+mod boot;
 mod cpu;
 
 use core::panic::PanicInfo;
 
 unsafe fn kernel_init() -> ! {
-    cpu::spin_forever()
+    panic!();
 }
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    unimplemented!()
+    cpu::spin_forever()
 }

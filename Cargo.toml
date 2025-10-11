@@ -6,15 +6,12 @@ edition = "2024"
 [profile.release]
 lto = true
 
-# Feature flags for selecting the board support package
-[features]
-# default bsp so rust-analyzer works
-default = ["bsp_rpi4"]
-bsp_rpi4 = []
-
 [[bin]]
 name = "kernel"
 path = "src/main.rs"
+test = false
+doctest = false
+bench = false
 
 [dependencies]
 aarch64-cpu = "10.0.0"

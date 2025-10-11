@@ -1,8 +1,8 @@
-#[cfg(target_arch = "aarch64")]
-#[path = "arch/aarch64/cpu.rs"]
-mod arch_cpu;
+use aarch64_cpu::asm;
 
-//public reexport of architetcture specific code
-pub use arch_cpu::spin_forever;
-
-mod boot;
+pub fn spin_forever() -> ! {
+    loop {
+        asm::wfe();
+        asm::barrier::isb(asm::barrier::SY);
+    }
+}
