@@ -3,6 +3,7 @@
 
 mod boot;
 mod cpu;
+mod driver;
 
 use core::panic::PanicInfo;
 
