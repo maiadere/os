@@ -1,3 +1,5 @@
+use aarch64_cpu::asm;
+
 use crate::driver::{self, read_mmio, write_mmio};
 
 pub struct GPIODriver {}
@@ -92,6 +94,7 @@ impl GPIODriver {
         };
         let register_addr = Self::GPIO_REGISTER_BASE + register_offset;
         let register_state = unsafe { read_mmio(register_addr) };
+        asm::barrier::dmb(asm::barrier::SY);
 
         let bit_offset = (pin_idx % 10) * 3;
 
@@ -101,6 +104,7 @@ impl GPIODriver {
         let register_state = register_state | bits_to_set;
 
         unsafe {
+            asm::barrier::dmb(asm::barrier::ST);
             write_mmio(register_addr, register_state);
         }
     }
@@ -118,6 +122,7 @@ impl GPIODriver {
         let register_addr = Self::GPIO_REGISTER_BASE + register_offset;
 
         let register_state = unsafe { read_mmio(register_addr) };
+        asm::barrier::dmb(asm::barrier::SY);
 
         let bit_offset = (pin_idx % 16) * 2;
 
@@ -127,6 +132,7 @@ impl GPIODriver {
         let register_state = register_state | bits_to_set;
 
         unsafe {
+            asm::barrier::dmb(asm::barrier::ST);
             write_mmio(register_addr, register_state);
         }
     }

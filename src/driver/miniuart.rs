@@ -1,3 +1,5 @@
+use aarch64_cpu::asm;
+
 use crate::driver::{
     gpio::{self, GPIODriver, GPIOPinMode, GPIOPinPullMode},
     read_mmio, write_mmio,
@@ -62,9 +64,11 @@ impl MiniUARTDriver {
     unsafe fn enable_mini_uart() -> () {
         let addr = Self::AUX_REGISTER_BASE + Self::AUX_ENABLES;
         let register_value = unsafe { read_mmio(addr) };
+        asm::barrier::dmb(asm::barrier::SY);
         let register_value = register_value | 1; //set bit 0
         unsafe {
             write_mmio(addr, register_value);
+            asm::barrier::dmb(asm::barrier::ST);
         }
     }
 }
