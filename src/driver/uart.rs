@@ -6,7 +6,7 @@ use crate::driver::{
 pub struct UARTDriver;
 
 impl UARTDriver {
-    const UART0_REGISTER_BASE: u64 = 0x7e201000;
+    const UART0_REGISTER_BASE: u64 = 0xfe201000;
     const DR: u64 = 0x00;
     const RSRECR: u64 = 0x04;
     const FR: u64 = 0x18;

@@ -48,7 +48,7 @@ impl GPIOPinPullMode {
 //TODO: MAKE THE ACCESS TO THIS DRIVER REQUIRE HOLDING A MUTEX
 impl GPIODriver {
     // address of the memory mapped gpio registers using the full 35 bit addressing
-    const GPIO_REGISTER_BASE: u64 = 0x7e20_0000;
+    const GPIO_REGISTER_BASE: u64 = 0xfe20_0000;
     const GPFSEL0: u64 = 0x00;
     const GPFSEL1: u64 = 0x04;
     const GPFSEL2: u64 = 0x08;
