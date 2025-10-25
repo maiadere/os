@@ -17,4 +17,4 @@ build:
     rust-objcopy {{kernel_elf}} --strip-all -O binary {{kernel_img}}
 
 run: build
-    qemu-system-aarch64 -M raspi4b -d in_asm -display none -kernel {{kernel_img}}
+    qemu-system-aarch64 -M raspi4b -serial mon:stdio -d in_asm -display none -kernel {{kernel_img}}

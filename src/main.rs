@@ -7,7 +7,13 @@ mod driver;
 
 use core::panic::PanicInfo;
 
+use crate::driver::uart::UARTDriver;
+
 unsafe fn kernel_init() -> ! {
+    unsafe {
+        UARTDriver::initialize();
+        UARTDriver::write_str("hi :3");
+    }
     panic!();
 }
 #[panic_handler]
