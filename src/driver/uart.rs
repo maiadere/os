@@ -1,3 +1,5 @@
+use aarch64_cpu::asm;
+
 use crate::driver::{
     gpio::{GPIODriver, GPIOPinMode, GPIOPinPullMode},
     read_mmio, write_mmio,
@@ -42,6 +44,8 @@ impl UARTDriver {
             // BAUDDIV = (FUARTCLK/(16 * Baud rate))
             //         = (48000000/(16 * 115200))
             //         = 26.0416666667
+            //
+            asm::barrier::dmb(asm::barrier::ST);
             write_mmio(Self::UART0_REGISTER_BASE + Self::IBRD, 26);
             write_mmio(Self::UART0_REGISTER_BASE + Self::FBRD, 3);
 
@@ -53,11 +57,11 @@ impl UARTDriver {
         }
     }
 
-    pub unsafe fn wait_for_tx() {
+    unsafe fn wait_for_tx() {
         unsafe { while (read_mmio(Self::UART0_REGISTER_BASE + Self::FR) >> 3) & 1 != 0 {} }
     }
 
-    pub unsafe fn write_u8(value: u8) {
+    unsafe fn write_u8(value: u8) {
         unsafe {
             Self::wait_for_tx();
             write_mmio(Self::UART0_REGISTER_BASE + Self::DR, value as u32);
@@ -65,10 +69,12 @@ impl UARTDriver {
     }
 
     pub unsafe fn write_str(s: &str) {
+        asm::barrier::dmb(asm::barrier::ST);
         unsafe {
             for &byte in s.as_bytes() {
                 Self::write_u8(byte);
             }
         }
+        asm::barrier::dmb(asm::barrier::SY);
     }
 }
