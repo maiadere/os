@@ -9,13 +9,14 @@ use core::panic::PanicInfo;
 
 use crate::driver::uart::UARTDriver;
 
-unsafe fn kernel_init() -> ! {
+fn kernel_main() -> ! {
     unsafe {
         UARTDriver::initialize();
         UARTDriver::write_str("hi :3");
     }
     panic!();
 }
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
     cpu::spin_forever()

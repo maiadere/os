@@ -1,40 +1,37 @@
 __phys_dram_start = 0x0;
-
 __rpi_kernel_entry = 0x80000;
-
 
 ENTRY(_start)
 
-SECTIONS
-{
+SECTIONS {
     . = __phys_dram_start;
+    
     .boot_stack (NOLOAD) : {
-      . += __rpi_kernel_entry;
-      __boot_stack_end = .;
+        . += __rpi_kernel_entry;
+        __boot_stack_end = .;
     }
 
-
-    .text :
-    {
+    .text : {
         KEEP(*(.text._start))
         *(.text._start_arguments) /* Statics read by _start(). */
         *(.text._start_rust)      /* The Rust entry point */
         *(.text*)                 /* Everything else */
     }
-    .rodata : ALIGN(8){
+    
+    .rodata : ALIGN(8) {
         *(.rodata*)
     }
-    .data : ALIGN(8){
+    
+    .data : ALIGN(8) {
         *(.data*)
     }
-    .bss (NOLOAD) : ALIGN(16)
-    {
+    
+    .bss (NOLOAD) : ALIGN(16) {
         __bss_start = .;
         *(.bss*);
         . = ALIGN(16);
         __bss_end = .;
     } :segment_data
-
 
     .got : { *(.got*) }
     ASSERT(SIZEOF(.got) == 0, "Relocation support not expected")
