@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 #![no_main]
 #![no_std]
 
@@ -6,14 +7,11 @@ mod cpu;
 mod driver;
 
 use core::panic::PanicInfo;
-
-use crate::driver::uart::UARTDriver;
+use driver::uart0;
 
 fn kernel_main() -> ! {
-    unsafe {
-        UARTDriver::initialize();
-        UARTDriver::write_str("hi :3");
-    }
+    uart0::init();
+    uart0::write_str("hi :3");
     panic!();
 }
 
