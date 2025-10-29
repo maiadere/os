@@ -24,6 +24,8 @@ _start:
     and x0, x0, {CORE_ID_BITMASK}
     mov x1, {BOOT_CORE_ID}
     cmp x0, x1
+    /* All non boot cores will jump into the parking loop */
+    b.ne .L_parking_loop
     */
 
     // enable CNTP for EL1
@@ -58,8 +60,6 @@ _start:
 
 
 
-    /* All non boot cores will jump into the parking loop */
-    b.ne .L_parking_loop
     /* drop down into el1 */
     ldr x0, =0x30C50830 //all default values
     msr SCTLR_EL1, x0
