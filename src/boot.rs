@@ -6,8 +6,10 @@ global_asm!(include_str!(
     BOOT_CORE_ID = const 0b0
 );
 
-// called from the handwritten assembly then jumps into the kernel entrypoint
+/// Jumps into the kernel entrypoint.
+///
+/// This function is called from the `boot.s` file.
 #[unsafe(no_mangle)]
 pub unsafe fn _start_rust() -> ! {
-    unsafe { crate::kernel_init() }
+    crate::kernel_main()
 }
