@@ -18,3 +18,5 @@ build:
 
 run: build
     qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel_img}}
+asm: build
+    qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel_img}}
