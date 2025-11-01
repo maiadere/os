@@ -16,7 +16,7 @@ pub unsafe fn _start_rust() -> ! {
         asm!("ldr x0, =0x81000");
         asm!("br x0");
     }
-    panic!();
+    unreachable!();
 }
 
 #[panic_handler]

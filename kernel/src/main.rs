@@ -23,7 +23,7 @@ fn kernel_main() -> ! {
 
 #[unsafe(no_mangle)]
 pub unsafe fn _start_rust() -> ! {
-    crate::kernel_main()
+    kernel_main()
 }
 
 #[panic_handler]
