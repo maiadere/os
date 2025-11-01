@@ -1,18 +1,6 @@
-[package]
-name = "os"
-version = "0.1.0"
-edition = "2024"
+[workspace]
+members = ["boot", "kernel", "tools/mk-kernel8"]
+resolver = "3"
 
 [profile.release]
 lto = true
-
-[[bin]]
-name = "kernel"
-path = "src/main.rs"
-test = false
-doctest = false
-bench = false
-
-[dependencies]
-aarch64-cpu = "10.0.0"
-heapless = "0.9.1"

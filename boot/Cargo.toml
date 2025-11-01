@@ -1,0 +1,13 @@
+[package]
+name = "boot"
+version = "0.1.0"
+edition = "2024"
+
+[[bin]]
+name = "boot"
+test = false
+doctest = false
+bench = false
+
+[dependencies]
+aarch64-cpu = "10.0.0"

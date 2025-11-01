@@ -2,11 +2,13 @@
 #![no_main]
 #![no_std]
 
-mod boot;
-mod cpu;
 mod driver;
+mod mmio;
 
-use aarch64_cpu::registers::{self, Readable};
+use aarch64_cpu::{
+    asm,
+    registers::{self, Readable},
+};
 use core::panic::PanicInfo;
 use driver::uart0;
 use heapless::format;
@@ -19,7 +21,14 @@ fn kernel_main() -> ! {
     panic!();
 }
 
+#[unsafe(no_mangle)]
+pub unsafe fn _start_rust() -> ! {
+    crate::kernel_main()
+}
+
 #[panic_handler]
 fn panic(_info: &PanicInfo) -> ! {
-    cpu::spin_forever()
+    loop {
+        asm::wfe();
+    }
 }
