@@ -4,7 +4,7 @@ fn bits_to_u64<const T: usize>(bits: &[bool; T]) -> u64 {
 
 /// Struct representing a table descriptor entry in the L0, L1 and L2 tables
 /// assuming a 64 KiB granule size
-struct TableDescriptor {
+pub struct TableDescriptor {
     ns_table: bool,
     ap_table: [bool; 2],
     uxn_table: bool,
@@ -31,7 +31,7 @@ impl TableDescriptor {
 
 /// Struct representing a page descriptor entry in L3 tables
 /// assuming a 64 KiB granule size
-struct PageDescriptor {
+pub struct PageDescriptor {
     uxn: bool,
     pxn: bool,
     contiguous: bool,
@@ -63,7 +63,7 @@ impl PageDescriptor {
             | bits_to_u64(&self.access_permission) << 6
             | ((self.non_secure as u64) << 5)
             | bits_to_u64(&self.attributes_index) << 2
-            | 0b10 // must always be set to 1 for page descriptors in L3
+           | 0b10 // must always be set to 1 for page descriptors in L3
             | (self.valid as u64)
     }
 }
