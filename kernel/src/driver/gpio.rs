@@ -1,6 +1,6 @@
 use aarch64_cpu::asm;
 
-use crate::driver::{read_mmio, write_mmio};
+use crate::mmio::{read_mmio, write_mmio};
 
 pub enum PinMode {
     Input,

@@ -1,9 +1,7 @@
 use aarch64_cpu::asm;
 
-use crate::driver::{
-    gpio::{self, PinMode, PullMode},
-    read_mmio, write_mmio,
-};
+use crate::driver::gpio::{self, PinMode, PullMode};
+use crate::mmio::{read_mmio, write_mmio};
 
 mod reg {
     pub const UART0_REGISTER_BASE: u64 = 0xfe201000;

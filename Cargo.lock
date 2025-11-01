@@ -12,6 +12,13 @@ dependencies = [
 ]
 
 [[package]]
+name = "boot"
+version = "0.1.0"
+dependencies = [
+ "aarch64-cpu",
+]
+
+[[package]]
 name = "byteorder"
 version = "1.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -37,12 +44,16 @@ dependencies = [
 ]
 
 [[package]]
-name = "os"
+name = "kernel"
 version = "0.1.0"
 dependencies = [
  "aarch64-cpu",
  "heapless",
 ]
+
+[[package]]
+name = "mk-kernel8"
+version = "0.1.0"
 
 [[package]]
 name = "stable_deref_trait"
