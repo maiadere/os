@@ -1,2 +1,6 @@
+#![no_std]
+
 #[allow(dead_code)]
-pub mod memory;
+
+pub mod descriptors;
+pub mod mmu;

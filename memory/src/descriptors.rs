@@ -5,19 +5,19 @@ fn bits_to_u64<const T: usize>(bits: &[bool; T]) -> u64 {
 /// Struct representing a table descriptor entry in the L0, L1 and L2 tables
 /// assuming a 64 KiB granule size
 pub struct TableDescriptor {
-    ns_table: bool,
-    ap_table: [bool; 2],
-    uxn_table: bool,
-    pxn_table: bool,
-    address: u32,
-    upper_address: [bool; 4],
-    valid: bool,
+    pub ns_table: bool,
+    pub ap_table: [bool; 2],
+    pub uxn_table: bool,
+    pub pxn_table: bool,
+    pub address: u32,
+    pub upper_address: [bool; 4],
+    pub valid: bool,
 }
 
 impl TableDescriptor {
     /// returns a binary representation of the descriptor
     /// which can be inserted into a translation table
-    fn bits(&self) -> u64 {
+    pub fn bits(&self) -> u64 {
         ((self.ns_table as u64) << 63)
             | bits_to_u64(&self.ap_table) << 61
             | (self.uxn_table as u64) << 60
@@ -32,25 +32,25 @@ impl TableDescriptor {
 /// Struct representing a page descriptor entry in L3 tables
 /// assuming a 64 KiB granule size
 pub struct PageDescriptor {
-    uxn: bool,
-    pxn: bool,
-    contiguous: bool,
-    dirty_bit: bool,
-    not_global: bool,
-    access_flag: bool,
-    shareability: [bool; 2],
-    access_permission: [bool; 2],
-    non_secure: bool,
-    attributes_index: [bool; 3],
-    address: u32,
-    upper_address: [bool; 4],
-    valid: bool,
+    pub uxn: bool,
+    pub pxn: bool,
+    pub contiguous: bool,
+    pub dirty_bit: bool,
+    pub not_global: bool,
+    pub access_flag: bool,
+    pub shareability: [bool; 2],
+    pub access_permission: [bool; 2],
+    pub non_secure: bool,
+    pub attributes_index: [bool; 3],
+    pub address: u32,
+    pub upper_address: [bool; 4],
+    pub valid: bool,
 }
 
 impl PageDescriptor {
     /// returns a binary representation of the descriptor
     /// which can be inserted into a translation table
-    fn bits(&self) -> u64 {
+    pub fn bits(&self) -> u64 {
         ((self.uxn as u64) << 54)
             | ((self.pxn as u64) << 53)
             | ((self.contiguous as u64) << 52)

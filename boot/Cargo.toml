@@ -11,3 +11,4 @@ bench = false
 
 [dependencies]
 aarch64-cpu = "10.0.0"
+memory = {path = "../memory"}

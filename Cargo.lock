@@ -16,6 +16,7 @@ name = "boot"
 version = "0.1.0"
 dependencies = [
  "aarch64-cpu",
+ "memory",
 ]
 
 [[package]]
@@ -49,11 +50,15 @@ version = "0.1.0"
 dependencies = [
  "aarch64-cpu",
  "heapless",
+ "memory",
 ]
 
 [[package]]
 name = "memory"
 version = "0.1.0"
+dependencies = [
+ "aarch64-cpu",
+]
 
 [[package]]
 name = "mk-kernel8"
