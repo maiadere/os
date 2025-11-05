@@ -63,7 +63,7 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
             };
 
             unsafe {
-                ((0x3b1f_0040 + i * 8) as *mut u64).write_volatile(table_descriptor.bits());
+                ((0x3b1f_0080 + i * 8) as *mut u64).write_volatile(table_descriptor.bits());
             }
         }
 
@@ -79,7 +79,7 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
                 access_flag: true,
                 shareability: [false; 2],
                 access_permission: [false; 2],
-                non_secure: true, // assuming we run in insecure mode by default
+                non_secure: false, // assuming we run in insecure mode by default
                 attributes_index: [false; 3],
                 address: (i * 0x1_0000) >> 16,
                 upper_address: [false; 4],
@@ -101,7 +101,7 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
                 access_flag: true,
                 shareability: [false; 2],
                 access_permission: [false; 2],
-                non_secure: true,
+                non_secure: false,
                 attributes_index: [false, false, true],
                 address: (0xfc00_0000 + i * 0x1_0000) >> 16,
                 upper_address: [false; 4],

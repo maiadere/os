@@ -30,3 +30,6 @@ run: build
 
 asm: build
     qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel8}}
+
+monitor: build
+    qemu-system-aarch64 -monitor stdio -M raspi4b -kernel {{kernel8}}
