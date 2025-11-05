@@ -22,7 +22,8 @@ impl MemoryManagementUnit {
     pub unsafe fn enable_mmu(&self) -> Result<(), MMUEnableError> {
         self.set_up_mair();
         // populate translation  tables
-        unsafe { TRANSLATION_TABLES.populate_tt_entries() };
+        #[allow(static_mut_refs)]
+        unsafe { let _ = TRANSLATION_TABLES.populate_tt_entries(); };
         // Point MMU to the tables
         TTBR0_EL1.set_baddr(0x3B1F_0000);
         TTBR1_EL1.set_baddr(0x3B1F_0040);

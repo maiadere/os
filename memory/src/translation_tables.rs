@@ -16,7 +16,6 @@ pub const NUM_LVL2_TABLES: usize = 16;
 /// A translation table type for the kernel space.
 pub type KernelTranslationTable = FixedSizeTranslationTable<NUM_LVL2_TABLES>;
 
-
 impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
     /// Create an instance.
     pub const fn new() -> Self {
@@ -34,7 +33,8 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
     /// # Safety
     ///
     /// - Modifies a `static mut`. Ensure it only happens from here.
-    pub unsafe fn populate_tt_entries(&mut self) -> Result<(), &'static str> {
+#[allow(static_mut_refs)]
+    pub unsafe fn populate_tt_entries(&self) -> Result<(), &'static str> {
         for i in 0..16 {
             let table_descriptor = TableDescriptor {
                 ns_table: false,
@@ -113,10 +113,5 @@ impl<const NUM_TABLES: usize> FixedSizeTranslationTable<NUM_TABLES> {
             }
         }
         Ok(())
-    }
-
-    /// The translation table's base address to be used for programming the MMU.
-    pub fn phys_base_address(&self) -> u64 {
-        self.lvl2.phys_start_addr_u64()
     }
 }
