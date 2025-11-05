@@ -1,14 +1,13 @@
 use aarch64_cpu::registers;
 use aarch64_cpu::registers::{MAIR_EL1, TCR_EL1, TTBR0_EL1, TTBR1_EL1};
 use registers::Writeable;
+use crate::descriptors::{PageDescriptor, TableDescriptor};
 
-use crate::translation_tables::KernelTranslationTable;
 pub enum MMUEnableError {
     AlreadyEnabled,
     Other(&'static str),
 }
 
-static mut TRANSLATION_TABLES: KernelTranslationTable = KernelTranslationTable::new();
 pub struct MemoryManagementUnit;
 
 impl MemoryManagementUnit {
@@ -25,7 +24,7 @@ impl MemoryManagementUnit {
         // populate translation  tables
         #[allow(static_mut_refs)]
         unsafe {
-            let _ = TRANSLATION_TABLES.populate_tt_entries();
+            let _ = self.populate_tt_entries();
         };
         // Point MMU to the tables
         TTBR0_EL1.set_baddr(0x3B1F_0000);
@@ -47,7 +46,87 @@ impl MemoryManagementUnit {
                 + TCR_EL1::T1SZ.val(31)
                 + TCR_EL1::IPS::Bits_44
                 + TCR_EL1::TG0::KiB_64
-                + TCR_EL1::TG1::KiB_64
+                + TCR_EL1::TG1::KiB_64,
         )
+    }
+    pub unsafe fn populate_tt_entries(&self) -> Result<(), &'static str> {
+        for i in 0..16 {
+            let table_descriptor = TableDescriptor {
+                ns_table: false,
+                ap_table: [false; 2],
+                uxn_table: false,
+                pxn_table: false,
+                upper_address: [false; 4],
+                valid: true,
+                address: (0x3B20_0000 + i * 0x1_0000) >> 16,
+            };
+
+            unsafe {
+                ((0x3b1f_0000 + i * 8) as *mut u64).write_volatile(table_descriptor.bits());
+            }
+        }
+
+        for i in 0..16 {
+            let table_descriptor = TableDescriptor {
+                ns_table: false,
+                ap_table: [false; 2],
+                uxn_table: false,
+                pxn_table: false,
+                upper_address: [false; 4],
+                valid: true,
+                address: (0x3B30_0000 + i * 0x1_0000) >> 16,
+            };
+
+            unsafe {
+                ((0x3b1f_0080 + i * 8) as *mut u64).write_volatile(table_descriptor.bits());
+            }
+        }
+
+        // L3 page descriptors
+        // identity mapping 0x0 through 0xA_0000
+        for i in 0..10 {
+            let page_descriptor = PageDescriptor {
+                uxn: false,
+                pxn: false,
+                contiguous: false,
+                dirty_bit: false,
+                not_global: false,
+                access_flag: true,
+                shareability: [false; 2],
+                access_permission: [false; 2],
+                non_secure: false, // assuming we run in insecure mode by default
+                attributes_index: [false; 3],
+                address: (i * 0x1_0000) >> 16,
+                upper_address: [false; 4],
+                valid: true,
+            };
+
+            unsafe {
+                ((0x3B20_0000 + i * 8) as *mut u64).write_volatile(page_descriptor.bits());
+            }
+        }
+
+        for i in 0..1024 {
+            let page_descriptor = PageDescriptor {
+                uxn: true,
+                pxn: true,
+                contiguous: false,
+                dirty_bit: false,
+                not_global: false,
+                access_flag: true,
+                shareability: [false; 2],
+                access_permission: [false; 2],
+                non_secure: false,
+                attributes_index: [false, false, true],
+                address: (0xfc00_0000 + i * 0x1_0000) >> 16,
+                upper_address: [false; 4],
+                valid: true,
+            };
+            unsafe {
+                ((0x3b27_0000 + (0x1c00 + i) * 8) as *mut u64)
+                    .write_volatile(page_descriptor.bits());
+            }
+        }
+        Ok(())
     }
 }

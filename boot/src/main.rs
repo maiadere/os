@@ -1,7 +1,6 @@
 #![no_std]
 #![no_main]
 
-use core::ptr::write_volatile;
 use core::{arch::asm, panic::PanicInfo};
 
 use core::arch::global_asm;
