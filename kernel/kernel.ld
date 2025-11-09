@@ -1,4 +1,4 @@
-__phys_dram_start = 0x0;
+__phys_dram_start = 0xfffffffe00000000;
 __rpi_kernel_entry = 0x80000;
 __boot_code_max_size = 0x1000;
 

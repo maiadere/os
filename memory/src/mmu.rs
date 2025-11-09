@@ -175,8 +175,19 @@ pub unsafe fn create_initial_mappings() {
     unsafe {
         insert_into_translation_tables(0x0000, 0x0000, 10, MemoryAttribute::Memory);
     }
-    // identity mapping peripherals
+
+    // upper half for kernel code
     unsafe {
-        insert_into_translation_tables(0xfc00_0000, 0xfc00_0000, 1024, MemoryAttribute::Device);
+        insert_into_translation_tables(0x0000 + UPPER_31_BITS, 0x0000, 10, MemoryAttribute::Memory);
+    }
+
+    // upper half peripheral mapping
+    unsafe {
+        insert_into_translation_tables(
+            0xfc00_0000 + UPPER_31_BITS,
+            0xfc00_0000,
+            1024,
+            MemoryAttribute::Device,
+        );
     }
 }

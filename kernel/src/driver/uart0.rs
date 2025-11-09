@@ -4,7 +4,9 @@ use crate::driver::gpio::{self, PinMode, PullMode};
 use crate::mmio::{read_mmio, write_mmio};
 
 mod reg {
-    pub const UART0_REGISTER_BASE: u64 = 0xfe201000;
+    use crate::driver::REGISTER_BASE_OFFSET;
+
+    pub const UART0_REGISTER_BASE: u64 = 0xfe20_1000 + REGISTER_BASE_OFFSET;
     pub const DR: u64 = UART0_REGISTER_BASE + 0x00;
     pub const RSRECR: u64 = UART0_REGISTER_BASE + 0x04;
     pub const FR: u64 = UART0_REGISTER_BASE + 0x18;

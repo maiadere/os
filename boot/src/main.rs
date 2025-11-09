@@ -14,7 +14,7 @@ pub unsafe fn _start_rust() -> ! {
     unsafe {
         memory::mmu::enable_mmu();
         // branch to kernel's entrypoint
-        asm!("ldr x0, =0x81000");
+        asm!("ldr x0, =0xfffffffe00081000");
         asm!("br x0");
     }
     unreachable!();

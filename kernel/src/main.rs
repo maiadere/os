@@ -16,6 +16,11 @@ use heapless::format;
 fn kernel_main() -> ! {
     uart0::init();
     uart0::write_str("hi :3\n");
+    uart0::write_str(
+        format!(100; "running kernel_main at address {:p}\n", kernel_main as *const ())
+            .unwrap()
+            .as_str(),
+    );
     let el = Readable::get(&registers::CurrentEL);
     uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
     panic!();
