@@ -44,7 +44,7 @@ _start:
 
     /* setup SCTLR access */
     mov x2, #0x0800
-    movk x2, #0x30d0, lsl #16
+    movk x2, #0x10d0, lsl #16
     msr sctlr_el1, x2
 
     ADR_REL x0, __boot_stack_end

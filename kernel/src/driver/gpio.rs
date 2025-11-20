@@ -45,7 +45,9 @@ impl PullMode {
 }
 
 mod reg {
-    pub const GPIO_REGISTER_BASE: u64 = 0xfe20_0000;
+    use crate::driver::REGISTER_BASE_OFFSET;
+
+    pub const GPIO_REGISTER_BASE: u64 = 0xfe20_0000 + REGISTER_BASE_OFFSET;
     pub const GPFSEL0: u64 = GPIO_REGISTER_BASE + 0x00;
     pub const GPFSEL1: u64 = GPIO_REGISTER_BASE + 0x04;
     pub const GPFSEL2: u64 = GPIO_REGISTER_BASE + 0x08;
