@@ -1,5 +1,6 @@
 pub mod gpio;
 pub mod uart0;
+pub mod videocore;
 
 const ARE_PERIPHERALS_UPPER_HALF: bool = true;
 const UPPER_HALF_OFFSET: u64 = 0xffff_fffe_0000_0000;
