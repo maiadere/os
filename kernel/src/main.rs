@@ -10,7 +10,7 @@ use aarch64_cpu::{
     registers::{self, Readable},
 };
 use core::panic::PanicInfo;
-use driver::uart0;
+use driver::{uart0, videocore::framebuffer};
 use heapless::format;
 
 fn kernel_main() -> ! {
@@ -23,6 +23,21 @@ fn kernel_main() -> ! {
     );
     let el = Readable::get(&registers::CurrentEL);
     uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
+
+    framebuffer::init(400, 300, 24);
+    let fb = framebuffer::get().expect("framebuffer should be initialized");
+
+    for y in 0..300 {
+        for x in 0..400 {
+            unsafe {
+                let fb = (fb + 3 * (x + y * 400)) as *mut u32;
+                let r = (255.0 * (y as f32 / 300.0)) as u32;
+                let g = (255.0 * (x as f32 / 400.0)) as u32;
+                fb.write_volatile(((g & 0xff) << 8) | (r & 0xff));
+            }
+        }
+    }
+
     panic!();
 }
 
