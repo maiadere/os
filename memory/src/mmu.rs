@@ -176,6 +176,16 @@ pub unsafe fn create_initial_mappings() {
         insert_into_translation_tables(0x0000, 0x0000, 10, MemoryAttribute::Memory);
     }
 
+    // upper half videocore sdram mapping (0x3b40_0000 - 0x4000_0000)
+    unsafe {
+        insert_into_translation_tables(
+            0x3b40_0000 + UPPER_31_BITS,
+            0x3b40_0000,
+            1216,
+            MemoryAttribute::Memory,
+        );
+    }
+
     // upper half for kernel code
     unsafe {
         insert_into_translation_tables(0x0000 + UPPER_31_BITS, 0x0000, 10, MemoryAttribute::Memory);
