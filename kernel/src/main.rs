@@ -24,7 +24,7 @@ fn kernel_main() -> ! {
     let el = Readable::get(&registers::CurrentEL);
     uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
 
-    framebuffer::init(400, 300, 24);
+    framebuffer::init(1024, 700, 24);
     let fb = framebuffer::get().expect("framebuffer should be initialized");
 
     for y in 0..300 {
