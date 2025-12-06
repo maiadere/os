@@ -9,7 +9,7 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable},
 };
-use core::panic::PanicInfo;
+use core::{fmt::Debug, panic::PanicInfo};
 use driver::{uart0, videocore::framebuffer};
 use heapless::format;
 
@@ -24,7 +24,7 @@ fn kernel_main() -> ! {
     let el = Readable::get(&registers::CurrentEL);
     uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
 
-    framebuffer::init(1024, 700, 24);
+    framebuffer::init(1024, 600, 24);
     let fb = framebuffer::get().expect("framebuffer should be initialized");
 
     for y in 0..300 {
@@ -47,7 +47,12 @@ pub unsafe fn _start_rust() -> ! {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    if let Some(panic_message) = format!(2048;"{}", info).ok() {
+        uart0::write_str(panic_message.as_str());
+    } else {
+        uart0::write_str("Kernel panic; panic message too long!");
+    }
     loop {
         asm::wfe();
     }
