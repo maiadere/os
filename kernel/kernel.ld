@@ -16,6 +16,7 @@ SECTIONS {
     
     .text : {
         KEEP(*(.text._start_rust))
+        KEEP(*(.text._el1_vector_table))
         *(.text*)
     }
     
