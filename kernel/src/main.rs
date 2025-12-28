@@ -10,7 +10,7 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable, VBAR_EL1},
 };
-use core::panic::PanicInfo;
+use core::{arch, panic::PanicInfo};
 use driver::uart0;
 use heapless::format;
 
@@ -31,6 +31,8 @@ fn kernel_main() -> ! {
             .unwrap()
             .as_str(),
     );
+    unsafe { arch::asm!("svc 0") }
+    unsafe { arch::asm!("svc 0") }
     panic!();
 }
 

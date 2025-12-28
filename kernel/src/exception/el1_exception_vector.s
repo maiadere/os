@@ -22,7 +22,8 @@ el1_vector_table:
 /* exceptions from current EL while using the SP_ELx stack (exceptions from kernel)*/
   /* Synchronous */ 
   .balign 0x80
-  b .
+  bl _unsafe_exception
+  eret
   /* IRQ */
   .balign 0x80
   b .
