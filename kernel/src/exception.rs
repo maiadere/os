@@ -1,5 +1,5 @@
 use core::arch::{asm, global_asm};
-global_asm!(include_str!("./exception/el1_interrupt_vector.s"));
+global_asm!(include_str!("./exception/el1_exception_vector.s"));
 
 pub unsafe fn set_vbar_el1() {
     unsafe {
