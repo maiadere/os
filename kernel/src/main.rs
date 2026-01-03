@@ -60,7 +60,7 @@ pub unsafe fn _start_rust() -> ! {
 
 #[panic_handler]
 fn panic(info: &PanicInfo) -> ! {
-    if let Some(panic_message) = format!(2048;"{}", info).ok() {
+    if let Some(panic_message) = format!(2048;"{}\n", info).ok() {
         uart0::write_str(panic_message.as_str());
     } else {
         uart0::write_str("Kernel panic; panic message too long!");
