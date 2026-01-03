@@ -11,7 +11,10 @@ use aarch64_cpu::{
     registers::{self, Readable, VBAR_EL1},
 };
 use core::{arch, panic::PanicInfo};
-use driver::uart0;
+use driver::{
+    uart0,
+    videocore::framebuffer::{Color, Framebuffer},
+};
 use heapless::format;
 
 fn kernel_main() -> ! {
@@ -33,6 +36,20 @@ fn kernel_main() -> ! {
     );
     unsafe { arch::asm!("svc 0") }
     unsafe { arch::asm!("svc 0") }
+
+    let (width, height) = (1024, 600);
+    let fb = Framebuffer::init(width, height, 32, 1).unwrap();
+
+    uart0::write_str(format!(500; "{:?}\n", fb).unwrap().as_str());
+
+    for y in 0..height {
+        for x in 0..width {
+            let r = x as f32 / width as f32;
+            let g = y as f32 / height as f32;
+            fb.set_pixel(x, y, Color::new(r, g, 0.0)).unwrap();
+        }
+    }
+
     panic!();
 }
 
@@ -42,7 +59,12 @@ pub unsafe fn _start_rust() -> ! {
 }
 
 #[panic_handler]
-fn panic(_info: &PanicInfo) -> ! {
+fn panic(info: &PanicInfo) -> ! {
+    if let Some(panic_message) = format!(2048;"{}", info).ok() {
+        uart0::write_str(panic_message.as_str());
+    } else {
+        uart0::write_str("Kernel panic; panic message too long!");
+    }
     loop {
         asm::wfe();
     }
