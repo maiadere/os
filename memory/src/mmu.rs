@@ -326,8 +326,8 @@ pub unsafe fn create_initial_mappings() {
 // map user space memory into virtual addresses starting at 0
 // and the physical memory put after what is mapped for the kernel
 pub unsafe fn post_boot_mappings() {
-    // paraphrased from armv8 docs section D4.9.1:
     // changing the entries requires doing it in a break-before-make sequence
+    // refer to armv8 docs section D4.9.1
 
     //break old mapping
     unsafe {
@@ -350,5 +350,6 @@ pub unsafe fn post_boot_mappings() {
             TT_access::UpperHalf,
         )
     }
+    //ensure visibility
     aarch64_cpu::asm::barrier::dsb(aarch64_cpu::asm::barrier::SY);
 }
