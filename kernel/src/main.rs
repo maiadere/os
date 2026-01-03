@@ -9,8 +9,11 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable},
 };
-use core::{fmt::Debug, panic::PanicInfo};
-use driver::{uart0, videocore::framebuffer};
+use core::panic::PanicInfo;
+use driver::{
+    uart0,
+    videocore::framebuffer::{Color, Framebuffer},
+};
 use heapless::format;
 
 fn kernel_main() -> ! {
@@ -24,17 +27,16 @@ fn kernel_main() -> ! {
     let el = Readable::get(&registers::CurrentEL);
     uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
 
-    framebuffer::init(1024, 600, 24);
-    let fb = framebuffer::get().expect("framebuffer should be initialized");
+    let (width, height) = (1024, 600);
+    let fb = Framebuffer::init(width, height, 32, 1).unwrap();
 
-    for y in 0..300 {
-        for x in 0..400 {
-            unsafe {
-                let fb = (fb + 3 * (x + y * 400)) as *mut u32;
-                let r = (255.0 * (y as f32 / 300.0)) as u32;
-                let g = (255.0 * (x as f32 / 400.0)) as u32;
-                fb.write_volatile(((g & 0xff) << 8) | (r & 0xff));
-            }
+    uart0::write_str(format!(500; "{:?}\n", fb).unwrap().as_str());
+
+    for y in 0..height {
+        for x in 0..width {
+            let r = x as f32 / width as f32;
+            let g = y as f32 / height as f32;
+            fb.set_pixel(x, y, Color::new(r, g, 0.0)).unwrap();
         }
     }
 
