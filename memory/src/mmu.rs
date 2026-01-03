@@ -1,3 +1,5 @@
+use core::arch;
+
 use crate::descriptors::{PageDescriptor, TableDescriptor};
 use aarch64_cpu::registers::{self, ReadWriteable};
 use aarch64_cpu::registers::{MAIR_EL1, TCR_EL1, TTBR0_EL1, TTBR1_EL1};
@@ -32,6 +34,9 @@ const EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS: u64 = 0x3b30_0000;
 const UPPER_31_BITS: u64 = 0xfffffffe00000000;
 const LOWER_33_BITS: u64 = 0x1FFFFFFFF;
 
+// size of a single translation granule in bytes
+const PAGE_SIZE: u64 = 0x1_0000;
+
 /// sets up registers controlling address translations
 /// safety: this modifies registers controlling the mmu, all bets are off
 unsafe fn set_up_translation_control_registers() {
@@ -59,7 +64,7 @@ unsafe fn set_up_translation_control_registers() {
 /// pulls out the translation table offsets from the virtual address
 /// assumes 64 KiB translation granules
 /// returns (l1, l2, l3) offsets
-/// must have the upper bits that select between EL1/EL0 masked
+/// must have the upper bits that select between EL1/EL0 be either all 1 or all 0
 pub fn virtual_addr_to_tt_offsets(virtual_address: u64) -> (u64, u64, u64) {
     let l3_offset = (virtual_address >> 16) & 0b1111111111111;
     let l2_offset = (virtual_address >> 29) & 0b1111111111111;
@@ -67,24 +72,33 @@ pub fn virtual_addr_to_tt_offsets(virtual_address: u64) -> (u64, u64, u64) {
     (l1_offset, l2_offset, l3_offset)
 }
 
+/// for selecting whether the write to the translation tables is done
+/// via their physical address or their upper half mapping
+#[derive(Debug, Eq, PartialEq)]
+enum TT_access {
+    Identity,
+    UpperHalf,
+}
+
 /// updates the page tables of the mmu
 /// to map a range of virtual addresses to a range of physical addresses
 /// safety: this modifies the way addresses are translated, all bets are off
 /// all addresses should be aligned to 64 KiB (i. e. 0x1_0000 bytes)
-unsafe fn insert_into_translation_tables(
+unsafe fn map_address_range(
     virtual_address_start: u64,
     physical_address_start: u64,
     num_pages: u64,
     memory_attribute: MemoryAttribute,
+    tt_access: TT_access,
 ) {
-    assert_eq!(virtual_address_start % 0x1_0000, 0);
-    assert_eq!(physical_address_start % 0x1_0000, 0);
+    assert_eq!(virtual_address_start % PAGE_SIZE, 0);
+    assert_eq!(physical_address_start % PAGE_SIZE, 0);
 
     let is_upper_half = (virtual_address_start & UPPER_31_BITS) == UPPER_31_BITS;
 
     for i in 0..num_pages {
         let virtual_addr = (virtual_address_start & LOWER_33_BITS) + i * 0x1_0000;
-        let phys_addr = physical_address_start + i * 0x1_0000;
+        let phys_addr = physical_address_start + i * PAGE_SIZE;
 
         let (_, l2_offset, l3_offset) = virtual_addr_to_tt_offsets(virtual_addr);
 
@@ -93,7 +107,12 @@ unsafe fn insert_into_translation_tables(
         } else {
             EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS
         };
-        let page_table_entry_addr = l3_base_addr + l2_offset * 0x1_0000 + l3_offset * 8;
+
+        let l3_base_addr = match tt_access {
+            TT_access::Identity => l3_base_addr,
+            TT_access::UpperHalf => l3_base_addr + UPPER_31_BITS,
+        };
+        let page_table_entry_addr = l3_base_addr + l2_offset * PAGE_SIZE + l3_offset * 8;
 
         let page_descriptor = PageDescriptor {
             uxn: false,
@@ -109,6 +128,54 @@ unsafe fn insert_into_translation_tables(
             address: (phys_addr >> 16) as u32,
             upper_address: [false; 4],
             valid: true,
+        };
+
+        unsafe {
+            (page_table_entry_addr as *mut u64).write_volatile(page_descriptor.bits());
+        }
+    }
+}
+
+unsafe fn mark_address_range_invalid(
+    virtual_address_start: u64,
+    num_pages: u64,
+    tt_access: TT_access,
+) {
+    assert_eq!(virtual_address_start % PAGE_SIZE, 0);
+
+    let is_upper_half = (virtual_address_start & UPPER_31_BITS) == UPPER_31_BITS;
+
+    for i in 0..num_pages {
+        let virtual_addr = (virtual_address_start & LOWER_33_BITS) + i * 0x1_0000;
+
+        let (_, l2_offset, l3_offset) = virtual_addr_to_tt_offsets(virtual_addr);
+
+        let l3_base_addr = if is_upper_half {
+            EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS
+        } else {
+            EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS
+        };
+
+        let l3_base_addr = match tt_access {
+            TT_access::Identity => l3_base_addr,
+            TT_access::UpperHalf => l3_base_addr + UPPER_31_BITS,
+        };
+        let page_table_entry_addr = l3_base_addr + l2_offset * PAGE_SIZE + l3_offset * 8;
+
+        let page_descriptor = PageDescriptor {
+            uxn: false,
+            pxn: false,
+            contiguous: false,
+            dirty_bit: false,
+            not_global: false,
+            access_flag: true,
+            shareability: [false; 2],
+            access_permission: [false; 2],
+            non_secure: false,
+            attributes_index: [false; 3],
+            address: 0,
+            upper_address: [false; 4],
+            valid: false,
         };
 
         unsafe {
@@ -141,7 +208,7 @@ unsafe fn populate_l2_tables() {
             pxn_table: false,
             upper_address: [false; 4],
             valid: true,
-            address: (EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS as u32 + i * 0x1_0000) >> 16,
+            address: (EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS as u32 + i * PAGE_SIZE as u32) >> 16,
         };
 
         unsafe {
@@ -158,7 +225,7 @@ unsafe fn populate_l2_tables() {
             pxn_table: false,
             upper_address: [false; 4],
             valid: true,
-            address: (EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS as u32 + i * 0x1_0000) >> 16,
+            address: (EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS as u32 + i * PAGE_SIZE as u32) >> 16,
         };
 
         unsafe {
@@ -167,37 +234,121 @@ unsafe fn populate_l2_tables() {
         }
     }
 }
+
+// we have a total of 15168 pages available to use in the first gibibyte of memory
+// WARNING: not all of those pages can be used,
+// notably the last 33 pages hold the translation tables themselves
+const TOTAL_PAGE_COUNT: u64 = 15168;
+// NOTE: 1 MiB is 16 pages
+
+// how many pages of memory the kernel gets for code and its stack
+const KERNEL_PAGE_COUNT: u64 = 16;
+// how much memory that corresponds to
+const KERNEL_MEMORY: u64 = KERNEL_PAGE_COUNT * PAGE_SIZE;
+
+// how many pages of memory the userspace gets for code + stack + heap
+const USER_PAGE_COUNT: u64 = 64;
+const USER_MEMORY: u64 = USER_PAGE_COUNT * PAGE_SIZE;
+
 pub unsafe fn create_initial_mappings() {
     unsafe {
         populate_l2_tables();
     }
-    // identity mapping 0x0 through 0xA_0000 to maintain execution after mmu start
+    // initalize tables to all invalid entries
     unsafe {
-        insert_into_translation_tables(0x0000, 0x0000, 10, MemoryAttribute::Memory);
+        mark_address_range_invalid(0, TOTAL_PAGE_COUNT, TT_access::Identity);
+        mark_address_range_invalid(0 + UPPER_31_BITS, TOTAL_PAGE_COUNT, TT_access::Identity);
+    }
+    // identity mapping the kernel code and stack to maintain execution after starting the mmu
+    unsafe {
+        map_address_range(
+            0x0000,
+            0x0000,
+            KERNEL_PAGE_COUNT,
+            MemoryAttribute::Memory,
+            TT_access::Identity,
+        );
     }
 
     // upper half videocore sdram mapping (0x3b40_0000 - 0x4000_0000)
     unsafe {
-        insert_into_translation_tables(
+        map_address_range(
             0x3b40_0000 + UPPER_31_BITS,
             0x3b40_0000,
-            1216,
+            0x4C0,
             MemoryAttribute::Memory,
+            TT_access::Identity,
         );
     }
 
-    // upper half for kernel code
+    // upper half for kernel code + stack
     unsafe {
-        insert_into_translation_tables(0x0000 + UPPER_31_BITS, 0x0000, 10, MemoryAttribute::Memory);
+        map_address_range(
+            0x0000 + UPPER_31_BITS,
+            0x0000,
+            KERNEL_PAGE_COUNT,
+            MemoryAttribute::Memory,
+            TT_access::Identity,
+        );
     }
 
     // upper half peripheral mapping
     unsafe {
-        insert_into_translation_tables(
+        map_address_range(
             0xfc00_0000 + UPPER_31_BITS,
             0xfc00_0000,
-            1024,
+            0x400,
             MemoryAttribute::Device,
+            TT_access::Identity,
         );
     }
+
+    // upper half translation table mapping
+    unsafe {
+        map_address_range(
+            EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS + UPPER_31_BITS,
+            EL1_L3_TRANSLATION_TABLE_BASE_ADDRESS,
+            16,
+            MemoryAttribute::Memory,
+            TT_access::Identity,
+        );
+    }
+    unsafe {
+        map_address_range(
+            EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS + UPPER_31_BITS,
+            EL0_L3_TRANSLATION_TABLE_BASE_ADDRESS,
+            16,
+            MemoryAttribute::Memory,
+            TT_access::Identity,
+        );
+    }
+}
+// map user space memory into virtual addresses starting at 0
+// and the physical memory put after what is mapped for the kernel
+pub unsafe fn post_boot_mappings() {
+    // paraphrased from armv8 docs section D4.9.1:
+    // changing the entries requires doing it in a break-before-make sequence
+
+    //break old mapping
+    unsafe {
+        mark_address_range_invalid(0x0000, KERNEL_PAGE_COUNT, TT_access::UpperHalf);
+    }
+    //ensure visibility of changes
+    aarch64_cpu::asm::barrier::dsb(aarch64_cpu::asm::barrier::SY);
+    unsafe {
+        arch::asm!("tlbi vmalle1");
+    }
+    aarch64_cpu::asm::barrier::dsb(aarch64_cpu::asm::barrier::SY);
+
+    // make new mapping
+    unsafe {
+        map_address_range(
+            0x0000,
+            KERNEL_MEMORY,
+            USER_PAGE_COUNT,
+            MemoryAttribute::Memory,
+            TT_access::UpperHalf,
+        )
+    }
+    aarch64_cpu::asm::barrier::dsb(aarch64_cpu::asm::barrier::SY);
 }

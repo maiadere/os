@@ -34,6 +34,15 @@ fn kernel_main() -> ! {
             .unwrap()
             .as_str(),
     );
+    let sp = registers::SP.get();
+    uart0::write_str(
+        format!(128; "current stack pointer: {:p}\n", sp as *const ())
+            .unwrap()
+            .as_str(),
+    );
+    unsafe {
+        memory::mmu::post_boot_mappings();
+    }
     unsafe { arch::asm!("svc 0") }
     unsafe { arch::asm!("svc 0") }
 
