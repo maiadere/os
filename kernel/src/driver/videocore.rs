@@ -308,6 +308,11 @@ pub mod framebuffer {
             if offset >= self.size {
                 return Err("pixel out of range");
             }
+            self.set_pixel_unchecked(x, y, color)
+        }
+
+        fn set_pixel_unchecked(&self, x: u32, y: u32, color: Color) -> Result<(), &'static str> {
+            let offset = y * self.pitch + x * (self.depth / 8);
             let p = (self.addr + offset) as u64 + UPPER_HALF_OFFSET;
             match self.depth {
                 32 => Ok(unsafe {
@@ -319,6 +324,15 @@ pub mod framebuffer {
                 }),
                 _ => Err("unsupported color depth"),
             }
+        }
+
+        pub fn fill(&self, color: Color) -> Result<(), &'static str> {
+            for y in 0..self.virt_res.1 {
+                for x in 0..self.virt_res.0 {
+                    self.set_pixel_unchecked(x, y, color)?;
+                }
+            }
+            Ok(())
         }
     }
 }
