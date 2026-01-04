@@ -42,6 +42,16 @@ unsafe extern "C" fn _synchronous_kernel_exception(register_contents: *mut Saved
 }
 
 #[unsafe(no_mangle)]
+unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut SavedRegisters) {
+    // assumes uart is initialized
+    uart0::write_str("synchronous kernel exception\n");
+    // safe as this should be set from the low level handler code
+    let register_contents = unsafe { *register_contents };
+    uart0::write_str(format!(512; "{:?}\n", register_contents).unwrap().as_str());
+    panic!("exception from userspace, halting execution")
+}
+
+#[unsafe(no_mangle)]
 unsafe extern "C" fn _unhandled_exception() -> ! {
     // assumes uart is initialized
     panic!("unhandled exception raised, kernel panic");
