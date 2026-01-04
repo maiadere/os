@@ -60,10 +60,10 @@ fn kernel_main() -> ! {
         }
     }
 
-    // translates to:
-    // nop
-    // svc #0
-    let test_code: [u8; _] = [0x1f, 0x20, 0x03, 0xd5, 0x01, 0x00, 0x00, 0xd4];
+    let test_code: [u8; _] = [
+        0x1f, 0x20, 0x03, 0xd5, //nop
+        0x01, 0x00, 0x00, 0xd4, //svc #0
+    ];
     userspace::load_program(&test_code);
 }
 
