@@ -12,8 +12,8 @@ kernel_bin := target_path + "/kernel.bin"
 
 kernel8 := target_path + "/kernel8.img"
 
-boot_rustflags := "-C link-arg=--script=boot/boot.ld -C target-feature=+fp-armv8"
-kernel_rustflags := "-C link-arg=--script=kernel/kernel.ld -C target-feature=+fp-armv8"
+boot_rustflags := "-C link-arg=--script=boot/boot.ld"
+kernel_rustflags := "-C link-arg=--script=kernel/kernel.ld -C target-feature=+neon"
 
 default:
     just --list
