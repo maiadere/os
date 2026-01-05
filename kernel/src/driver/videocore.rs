@@ -266,7 +266,7 @@ pub mod framebuffer {
             let (phys_res, virt_res, _, depth, order, buffer, pitch) = mailbox_property_send((
                 PropertyTag::new(SET_PHYSICAL_RESOLUTION, (width, height)),
                 PropertyTag::new(SET_VIRTUAL_RESOLUTION, (width, height)),
-                PropertyTag::new(SET_VIRTUAL_OFFSET, (0, 0)),
+                PropertyTag::new(SET_VIRTUAL_OFFSET, (0u32, 0u32)),
                 PropertyTag::new(SET_DEPTH, depth),
                 PropertyTag::new(SET_PIXEL_ORDER, order),
                 PropertyTag::new(ALLOCATE_BUFFER, (4096u32, 0u32)),
@@ -316,11 +316,11 @@ pub mod framebuffer {
             let p = (self.addr + offset) as u64 + UPPER_HALF_OFFSET;
             match self.depth {
                 32 => Ok(unsafe {
-                    *(p as *mut u32) = match self.order {
+                    (p as *mut u32).write_volatile(match self.order {
                         0 => color.as_bgra32(),
                         1 => color.as_rgba32(),
                         _ => return Err("unsupported pixel order"),
-                    };
+                    });
                 }),
                 _ => Err("unsupported color depth"),
             }

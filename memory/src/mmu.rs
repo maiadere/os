@@ -276,7 +276,7 @@ pub unsafe fn create_initial_mappings() {
             0x3b40_0000 + UPPER_31_BITS,
             0x3b40_0000,
             0x4C0,
-            MemoryAttribute::Memory,
+            MemoryAttribute::Device,
             TT_access::Identity,
         );
     }

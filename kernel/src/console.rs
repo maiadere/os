@@ -22,8 +22,12 @@ const MAX_LINES: usize = 32;
 macro_rules! log {
     ($max:expr; $($arg:tt)*) => {{
         let console = unsafe { &mut *&raw mut crate::console::CONSOLE } ;
-        match format!($max; $($arg)*) {
-            Ok(b) => Ok(console.write(b.as_bytes())),
+        match heapless::format!($max; $($arg)*) {
+            Ok(b) => {
+                crate::uart0::write_str(b.as_str());
+                console.write(b.as_bytes());
+                Ok(())
+            },
             Err(e) => Err(e),
         }
     }};
@@ -97,14 +101,5 @@ impl Console {
         }
 
         lines
-    }
-
-    fn get_byte(&self, index: usize) -> u8 {
-        let (left, right) = self.history.as_slices();
-        if index < left.len() {
-            left[index]
-        } else {
-            right[left.len() + index]
-        }
     }
 }
