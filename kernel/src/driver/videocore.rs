@@ -266,7 +266,7 @@ pub mod framebuffer {
             let (phys_res, virt_res, _, depth, order, buffer, pitch) = mailbox_property_send((
                 PropertyTag::new(SET_PHYSICAL_RESOLUTION, (width, height)),
                 PropertyTag::new(SET_VIRTUAL_RESOLUTION, (width, height)),
-                PropertyTag::new(SET_VIRTUAL_OFFSET, (0, 0)),
+                PropertyTag::new(SET_VIRTUAL_OFFSET, (0u32, 0u32)),
                 PropertyTag::new(SET_DEPTH, depth),
                 PropertyTag::new(SET_PIXEL_ORDER, order),
                 PropertyTag::new(ALLOCATE_BUFFER, (4096u32, 0u32)),
@@ -308,17 +308,31 @@ pub mod framebuffer {
             if offset >= self.size {
                 return Err("pixel out of range");
             }
+            self.set_pixel_unchecked(x, y, color)
+        }
+
+        fn set_pixel_unchecked(&self, x: u32, y: u32, color: Color) -> Result<(), &'static str> {
+            let offset = y * self.pitch + x * (self.depth / 8);
             let p = (self.addr + offset) as u64 + UPPER_HALF_OFFSET;
             match self.depth {
                 32 => Ok(unsafe {
-                    *(p as *mut u32) = match self.order {
+                    (p as *mut u32).write_volatile(match self.order {
                         0 => color.as_bgra32(),
                         1 => color.as_rgba32(),
                         _ => return Err("unsupported pixel order"),
-                    };
+                    });
                 }),
                 _ => Err("unsupported color depth"),
             }
+        }
+
+        pub fn fill(&self, color: Color) -> Result<(), &'static str> {
+            for y in 0..self.virt_res.1 {
+                for x in 0..self.virt_res.0 {
+                    self.set_pixel_unchecked(x, y, color)?;
+                }
+            }
+            Ok(())
         }
     }
 }

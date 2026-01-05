@@ -2,6 +2,7 @@
 #![no_main]
 #![no_std]
 
+mod console;
 mod driver;
 mod exception;
 mod mmio;
@@ -11,12 +12,17 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable, VBAR_EL1},
 };
-use core::{arch, panic::PanicInfo};
-use driver::{
-    uart0,
-    videocore::framebuffer::{Color, Framebuffer},
-};
+use core::{arch::asm, panic::PanicInfo};
+use driver::{uart0, videocore::framebuffer::Framebuffer};
 use heapless::format;
+
+use crate::driver::videocore::mailbox::{
+    PropertyTag, mailbox_property_send,
+    property::{
+        GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
+        GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+    },
+};
 
 fn kernel_main() -> ! {
     // post boot init
@@ -25,40 +31,53 @@ fn kernel_main() -> ! {
         exception::set_vbar_el1();
         memory::mmu::post_boot_mappings();
     }
+
+    let fb = {
+        let mut fb = Framebuffer::init(1366, 768, 32, 1).unwrap();
+        fb.phys_res = (1024, 600);
+        fb.virt_res = (1024, 600);
+        fb
+    };
+
+    log!(750; "{}\n", include_str!("../assets/logo.txt"));
+
     // at this point the exceptions, uart printing and virtual memory are set up
-    uart0::write_str("hi :3\n");
-    uart0::write_str(
-        format!(100; "running kernel_main at address {:p}\n", kernel_main as *const ())
-            .unwrap()
-            .as_str(),
-    );
-    let el = (&registers::CurrentEL).get();
-    uart0::write_str(format!(20; "current EL: {}\n", el >> 2).unwrap().as_str());
-    let vbar_el1 = VBAR_EL1.get();
-    uart0::write_str(
-        format!(100; "address in vbar_el1: {:p}\n", vbar_el1 as *const ())
-            .unwrap()
-            .as_str(),
-    );
-    let sp = registers::SP.get();
-    uart0::write_str(
-        format!(128; "current stack pointer: {:p}\n", sp as *const ())
-            .unwrap()
-            .as_str(),
-    );
+    log!(100; "Running kernel_main at address {:p}\n", kernel_main as *const ());
+    log!(20; "Current EL: {}\n", ((&registers::CurrentEL).get()) >> 2);
+    log!(100; "Address in vbar_el1: {:p}\n", VBAR_EL1.get() as *const ());
+    log!(100; "Current stack pointer: {:p}\n", registers::SP.get() as *const ());
+    log!(100; "Framebuffer address: {:p}\n", fb.addr as *const ());
 
-    let (width, height) = (1024, 600);
-    let fb = Framebuffer::init(width, height, 32, 1).unwrap();
+    log!(100; "Board model: {}\n", mailbox_property_send(PropertyTag::new(GET_BOARD_MODEL, 0u32))
+        .unwrap()
+        .value);
+    log!(100; "Board serial: {}\n", mailbox_property_send(PropertyTag::new(GET_BOARD_SERIAL, 0u64))
+        .unwrap()
+        .value);
 
-    uart0::write_str(format!(500; "{:?}\n", fb).unwrap().as_str());
+    let mac = mailbox_property_send(PropertyTag::new(GET_BOARD_MAC_ADDRESS, [0u8; 6]))
+        .unwrap()
+        .value;
+    log!(100; "MAC Address: {:02x}:{:02x}:{:02x}:{:02x}:{:02x}:{:02x}\n", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]);
 
-    for y in 0..height {
-        for x in 0..width {
-            let r = x as f32 / width as f32;
-            let g = y as f32 / height as f32;
-            fb.set_pixel(x, y, Color::new(r, g, 0.0)).unwrap();
-        }
-    }
+    let arm_mem = mailbox_property_send(PropertyTag::new(GET_ARM_MEMORY, (0u32, 0u32)))
+        .unwrap()
+        .value;
+    log!(100; "ARM memory base address: {:p}\n", arm_mem.0 as *const ());
+    log!(100; "ARM memory size: {}MiB\n", arm_mem.1 / (1024 * 1024));
+
+    let vc_mem = mailbox_property_send(PropertyTag::new(GET_VC_MEMORY, (0u32, 0u32)))
+        .unwrap()
+        .value;
+    log!(100; "VideoCore memory base address: {:p}\n", vc_mem.0 as *const ());
+    log!(100; "VideoCore memory size: {}MiB\n", vc_mem.1 / (1024 * 1024));
+
+    let clock_rate = mailbox_property_send(PropertyTag::new(GET_CLOCK_RATE_MEASURED, (3u32, 0u32)))
+        .unwrap()
+        .value;
+    log!(100; "Measured clock rate: {:.2}GHz\n", clock_rate.1 as f64 / 1e9);
+
+    console::render(&fb);
 
     let test_code: [u8; _] = [
         0x1f, 0x20, 0x03, 0xd5, //nop
@@ -69,6 +88,23 @@ fn kernel_main() -> ! {
 
 #[unsafe(no_mangle)]
 pub unsafe fn _start_rust() -> ! {
+    unsafe {
+        asm!(
+            ".macro ADR_REL register, symbol",
+            "    adrp \\register, \\symbol",
+            "    add \\register, \\register, #:lo12:\\symbol",
+            ".endm",
+            "    ADR_REL x0, __bss_start",
+            "    ADR_REL x1, __bss_end",
+            /* zero the bss segment */
+            "0:",
+            "    cmp x0, x1",
+            "    b.eq 1f",
+            "    stp xzr, xzr, [x0], #16",
+            "    b 0b",
+            "1:",
+        );
+    }
     kernel_main()
 }
 
