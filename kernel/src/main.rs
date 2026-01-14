@@ -32,12 +32,7 @@ fn kernel_main() -> ! {
         memory::mmu::post_boot_mappings();
     }
 
-    let fb = {
-        let mut fb = Framebuffer::init(1366, 768, 32, 1).unwrap();
-        fb.phys_res = (1024, 600);
-        fb.virt_res = (1024, 600);
-        fb
-    };
+    let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
 
     log!(750; "{}\n", include_str!("../assets/logo.txt"));
 
