@@ -35,5 +35,9 @@ SECTIONS {
     .got : { *(.got*) }
     ASSERT(SIZEOF(.got) == 0, "Relocation support not expected")
 
-    /DISCARD/ : { *(.comment*) }
+    /DISCARD/ : {
+      *(.comment*);
+      *(.eh_frame_hdr*);
+      *(.eh_frame*);
+    }
 }
