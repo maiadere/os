@@ -1,4 +1,5 @@
 pub mod gpio;
+pub mod timer;
 pub mod uart0;
 pub mod videocore;
 
