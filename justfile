@@ -31,5 +31,7 @@ run: build
 asm: build
     qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel8}}
 
+sd: build
+    qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel8}} -sd sdcard.img
 monitor: build
     qemu-system-aarch64 -monitor stdio -M raspi4b -kernel {{kernel8}}

@@ -1,4 +1,5 @@
 pub mod gpio;
+pub mod sdhci;
 pub mod uart0;
 pub mod videocore;
 
