@@ -70,15 +70,32 @@ fn kernel_main() -> ! {
     let clock_rate = mailbox_property_send(PropertyTag::new(GET_CLOCK_RATE_MEASURED, (3u32, 0u32)))
         .unwrap()
         .value;
-    log!(100; "Measured clock rate: {:.2}GHz\n", clock_rate.1 as f64 / 1e9);
+    log!(100; "Measured clock rate: {:.2}GHz\n\n", clock_rate.1 as f64 / 1e9);
 
     console::render(&fb);
 
+    // let test_code: [u8; _] = [
+    //     0x1f, 0x20, 0x03, 0xd5, //nop
+    //     0x21, 0x00, 0x00, 0xd4, //svc #1
+    //     0x41, 0x00, 0x00, 0xd4, //svc #2
+    //     0x01, 0x00, 0x00, 0xd4, //svc #0
+    // ];
     let test_code: [u8; _] = [
-        0x1f, 0x20, 0x03, 0xd5, //nop
-        0x01, 0x00, 0x00, 0xd4, //svc #0
+        0xa0, 0x00, 0x00, 0x10, //
+        0x81, 0x01, 0x80, 0xd2, //
+        0x21, 0x00, 0x00, 0xd4, //
+        0x00, 0x00, 0x00, 0x10, //
+        0x01, 0x00, 0x00, 0xd4, //
+        0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
     ];
-    userspace::load_program(&test_code);
+    unsafe { userspace::load_program(&test_code) };
+    // let test = driver::sdhci::muxing_state();
+    // log!(100;"muxing state: {:b}\n", test);
+    // let test = driver::sdhci::test_capabilities();
+    // log!(100;"sdhci capabilities: {:b}\n", test);
+    // let test = driver::sdhci::test_presence();
+    // log!(100;"sdhci presence: {:b}\n", test);
+    // panic!("kernel over");
 }
 
 #[unsafe(no_mangle)]
