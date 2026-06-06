@@ -16,11 +16,14 @@ use core::{arch::asm, panic::PanicInfo};
 use driver::{uart0, videocore::framebuffer::Framebuffer};
 use heapless::format;
 
-use crate::driver::videocore::mailbox::{
-    PropertyTag, mailbox_property_send,
-    property::{
-        GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
-        GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+use crate::driver::{
+    spi,
+    videocore::mailbox::{
+        PropertyTag, mailbox_property_send,
+        property::{
+            GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
+            GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+        },
     },
 };
 
@@ -74,11 +77,14 @@ fn kernel_main() -> ! {
 
     console::render(&fb);
 
-    let test_code: [u8; _] = [
-        0x1f, 0x20, 0x03, 0xd5, //nop
-        0x01, 0x00, 0x00, 0xd4, //svc #0
-    ];
-    userspace::load_program(&test_code);
+    unsafe { spi::initialize_spi0() };
+
+    panic!("kernel over");
+    // let test_code: [u8; _] = [
+    //     0x1f, 0x20, 0x03, 0xd5, //nop
+    //     0x01, 0x00, 0x00, 0xd4, //svc #0
+    // ];
+    // userspace::load_program(&test_code);
 }
 
 #[unsafe(no_mangle)]
