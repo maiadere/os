@@ -10,7 +10,7 @@ use registers::Writeable;
 const STACK_BASE: usize = 0x8_0000;
 /// loads a slice of bytes containing machine code into userspace memory, sets up the program state
 /// then jumps to it in el0
-pub fn load_program(code: &[u8]) -> ! {
+pub unsafe fn load_program(code: &[u8]) -> ! {
     for (offset, byte) in code.iter().enumerate() {
         unsafe {
             ((STACK_BASE + offset) as *mut u8).write_volatile(*byte);
@@ -37,4 +37,13 @@ pub fn load_program(code: &[u8]) -> ! {
         arch::asm!("eret");
     }
     unreachable!()
+}
+
+// checks whether the userspace provided pointer is safe to read by the kernel
+// this function will require updating as the memory model evolves
+// for now it simply checks whether the pointer is within the memory which is statically allocated
+// for userspace
+pub fn check_userspace_pointer(ptr: *const u8) -> bool {
+    let addr = ptr.expose_provenance();
+    return addr > 0 && addr < memory::mmu::USER_MEMORY as usize;
 }
