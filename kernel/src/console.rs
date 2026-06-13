@@ -57,7 +57,7 @@ impl Console {
 
         let lines = self.render_lines(max_line_chars, max_lines);
 
-        fb.fill(Color::new(0.0, 0.0, 0.0));
+        fb.fill(Color::new(0, 0, 0));
 
         for (row, line) in lines.iter().rev().enumerate() {
             for (col, &c) in line.iter().enumerate() {
@@ -73,11 +73,10 @@ impl Console {
         let char_pixels = &FONT_ATLAS[char_offset..][..CHAR_SIZE];
 
         for (pixel_y, row) in char_pixels.chunks_exact(CHAR_WIDTH).enumerate() {
-            for (pixel_x, &pixel) in row.iter().enumerate() {
+            for (pixel_x, &color) in row.iter().enumerate() {
                 let x = (pixel_x + x) as u32;
                 let y = (pixel_y + y) as u32;
-                let p = pixel as f32 / 255.0;
-                let color = Color::new(p, p, p);
+                let color = Color::new(color, color, color);
                 fb.set_pixel(x, y, color);
             }
         }
