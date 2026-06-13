@@ -6,6 +6,7 @@ mod console;
 mod driver;
 mod exception;
 mod mmio;
+mod snake_demo;
 mod userspace;
 
 use aarch64_cpu::asm;
@@ -24,16 +25,7 @@ fn kernel_main() -> ! {
     }
 
     let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
-
-    loop {
-        log!(100; "time: {}\n", timer::get_system_time() as f32 / 1000.0);
-        fb.fill(Color::new(255, 255, 255));
-        timer::delay_ms(1000);
-
-        log!(100; "time: {}\n", timer::get_system_time() as f32 / 1000.0);
-        fb.fill(Color::new(0, 0, 0));
-        timer::delay_ms(1000);
-    }
+    snake_demo::run(&fb)
 }
 
 #[unsafe(no_mangle)]
