@@ -63,21 +63,7 @@ impl Console {
             for (col, &c) in line.iter().enumerate() {
                 let x = CHAR_WIDTH * col;
                 let y = CHAR_HEIGHT * row;
-                Self::draw_char(fb, x, y, c);
-            }
-        }
-    }
-
-    fn draw_char(fb: &Framebuffer, x: usize, y: usize, c: u8) {
-        let char_offset = c as usize * CHAR_SIZE;
-        let char_pixels = &FONT_ATLAS[char_offset..][..CHAR_SIZE];
-
-        for (pixel_y, row) in char_pixels.chunks_exact(CHAR_WIDTH).enumerate() {
-            for (pixel_x, &color) in row.iter().enumerate() {
-                let x = (pixel_x + x) as u32;
-                let y = (pixel_y + y) as u32;
-                let color = Color::new(color, color, color);
-                fb.set_pixel(x, y, color);
+                draw_char(fb, x, y, c);
             }
         }
     }
@@ -100,5 +86,26 @@ impl Console {
         }
 
         lines
+    }
+}
+
+pub fn draw_char(fb: &Framebuffer, x: usize, y: usize, c: u8) {
+    let char_offset = c as usize * CHAR_SIZE;
+    let char_pixels = &FONT_ATLAS[char_offset..][..CHAR_SIZE];
+
+    for (pixel_y, row) in char_pixels.chunks_exact(CHAR_WIDTH).enumerate() {
+        for (pixel_x, &color) in row.iter().enumerate() {
+            let x = (pixel_x + x) as u32;
+            let y = (pixel_y + y) as u32;
+            let color = Color::new(color, color, color);
+            fb.set_pixel(x, y, color);
+        }
+    }
+}
+
+pub fn draw_text(fb: &Framebuffer, mut x: usize, y: usize, text: &str) {
+    for byte in text.bytes() {
+        draw_char(fb, x, y, byte);
+        x += CHAR_WIDTH;
     }
 }
