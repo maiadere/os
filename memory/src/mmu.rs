@@ -195,7 +195,7 @@ pub unsafe fn enable_mmu() {
 
     // switch mmu on
     aarch64_cpu::asm::barrier::isb(aarch64_cpu::asm::barrier::SY);
-    registers::SCTLR_EL1.modify(registers::SCTLR_EL1::M::SET);
+    registers::SCTLR_EL1.modify(registers::SCTLR_EL1::I::SET + registers::SCTLR_EL1::M::SET);
     aarch64_cpu::asm::barrier::isb(aarch64_cpu::asm::barrier::SY);
 }
 
