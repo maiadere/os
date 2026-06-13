@@ -35,4 +35,5 @@ monitor: build
     qemu-system-aarch64 -monitor stdio -M raspi4b -kernel {{kernel8}}
 
 sdspi: build
-    qemu-system-aarch64 -monitor stdio -M raspi4b -kernel {{kernel8}} -device sd-card-spi,drive=spisdcard -drive file=sdcard.img,format=raw,id=spisdcard,if=none -trace "bcm2835_spi*"
+    qemu-system-aarch64 -serial mon:stdio -M raspi4b -kernel {{kernel8}} -device sd-card-spi,drive=spisdcard -drive file=sdcard.img,format=raw,id=spisdcard,if=none 
+# -trace "bcm2835*"
