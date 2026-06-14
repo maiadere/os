@@ -6,6 +6,7 @@ use crate::{
         gpio, timer,
         videocore::framebuffer::{Color, Framebuffer},
     },
+    log,
 };
 
 pub struct SnakeGame {
@@ -109,6 +110,12 @@ pub fn run(fb: &Framebuffer) -> ! {
     let mut game = SnakeGame::new();
     let mut i = 0;
 
+    gpio::set_pull_mode(0, gpio::PullMode::PullUp);
+    gpio::set_pull_mode(1, gpio::PullMode::PullUp);
+    gpio::set_pull_mode(2, gpio::PullMode::PullUp);
+    gpio::set_pull_mode(3, gpio::PullMode::PullUp);
+    gpio::set_pull_mode(8, gpio::PullMode::PullUp);
+
     loop {
         if i % 10 == 0 {
             game.update();
@@ -118,19 +125,26 @@ pub fn run(fb: &Framebuffer) -> ! {
         i += 1;
         timer::delay_ms(10);
 
-        if gpio::get_pin_state(0) {
+        // log!(100;"pin states: 0: {}, 1: {}, 2: {}, 3: {}, 8: {}\n",
+        //     gpio::get_pin_state(0),
+        //     gpio::get_pin_state(1),
+        //     gpio::get_pin_state(2),
+        //     gpio::get_pin_state(3),
+        //     gpio::get_pin_state(8));
+
+        if !gpio::get_pin_state(0) {
             game.input(Dir::Up);
         }
-        if gpio::get_pin_state(1) {
+        if !gpio::get_pin_state(1) {
             game.input(Dir::Left);
         }
-        if gpio::get_pin_state(2) {
+        if !gpio::get_pin_state(2) {
             game.input(Dir::Down);
         }
-        if gpio::get_pin_state(3) {
+        if !gpio::get_pin_state(3) {
             game.input(Dir::Right);
         }
-        if gpio::get_pin_state(8) && game.over {
+        if !gpio::get_pin_state(8) && game.over {
             game = SnakeGame::new();
             i = 0;
         }
