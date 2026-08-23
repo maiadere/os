@@ -114,7 +114,7 @@ pub fn run(fb: &Framebuffer) -> ! {
     gpio::set_pull_mode(1, gpio::PullMode::PullUp);
     gpio::set_pull_mode(2, gpio::PullMode::PullUp);
     gpio::set_pull_mode(3, gpio::PullMode::PullUp);
-    gpio::set_pull_mode(8, gpio::PullMode::PullUp);
+    gpio::set_pull_mode(25, gpio::PullMode::PullUp);
 
     loop {
         if i % 10 == 0 {
@@ -144,7 +144,7 @@ pub fn run(fb: &Framebuffer) -> ! {
         if !gpio::get_pin_state(3) {
             game.input(Dir::Right);
         }
-        if !gpio::get_pin_state(8) && game.over {
+        if !gpio::get_pin_state(25) && game.over {
             game = SnakeGame::new();
             i = 0;
         }

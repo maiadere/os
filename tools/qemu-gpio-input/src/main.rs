@@ -19,7 +19,7 @@ fn main() -> std::io::Result<()> {
         (Keycode::J, 5),
         (Keycode::K, 6),
         (Keycode::L, 7),
-        (Keycode::F, 8),
+        (Keycode::F, 25),
         (Keycode::H, 9),
     ];
     let mut states: HashMap<u8, bool> = key_map.iter().map(|&(_, pin)| (pin, false)).collect();
