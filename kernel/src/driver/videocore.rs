@@ -218,29 +218,32 @@ pub mod framebuffer {
 
     #[derive(Debug, Clone, Copy)]
     pub struct Color {
-        r: f32,
-        g: f32,
-        b: f32,
+        r: u8,
+        g: u8,
+        b: u8,
     }
 
     impl Color {
-        pub fn new(r: f32, g: f32, b: f32) -> Self {
+        #[inline(always)]
+        pub fn new(r: u8, g: u8, b: u8) -> Self {
             Self { r, g, b }
         }
 
+        #[inline(always)]
         pub fn as_rgba32(&self) -> u32 {
             let mut color = 0;
-            color |= ((255.0 * self.r.clamp(0.0, 1.0)) as u32) << 0;
-            color |= ((255.0 * self.g.clamp(0.0, 1.0)) as u32) << 8;
-            color |= ((255.0 * self.b.clamp(0.0, 1.0)) as u32) << 16;
+            color |= (self.r as u32) << 0;
+            color |= (self.g as u32) << 8;
+            color |= (self.b as u32) << 16;
             color
         }
 
+        #[inline(always)]
         pub fn as_bgra32(&self) -> u32 {
             let mut color = 0;
-            color |= ((255.0 * self.b.clamp(0.0, 1.0)) as u32) << 0;
-            color |= ((255.0 * self.g.clamp(0.0, 1.0)) as u32) << 8;
-            color |= ((255.0 * self.r.clamp(0.0, 1.0)) as u32) << 16;
+            color |= (self.b as u32) << 0;
+            color |= (self.g as u32) << 8;
+            color |= (self.r as u32) << 16;
             color
         }
     }
@@ -303,6 +306,7 @@ pub mod framebuffer {
             Ok(fb)
         }
 
+        #[inline(always)]
         pub fn set_pixel(&self, x: u32, y: u32, color: Color) -> Result<(), &'static str> {
             let offset = y * self.pitch + x * (self.depth / 8);
             if offset >= self.size {
@@ -311,6 +315,7 @@ pub mod framebuffer {
             self.set_pixel_unchecked(x, y, color)
         }
 
+        #[inline(always)]
         fn set_pixel_unchecked(&self, x: u32, y: u32, color: Color) -> Result<(), &'static str> {
             let offset = y * self.pitch + x * (self.depth / 8);
             let p = (self.addr + offset) as u64 + UPPER_HALF_OFFSET;
@@ -326,6 +331,7 @@ pub mod framebuffer {
             }
         }
 
+        #[inline(always)]
         pub fn fill(&self, color: Color) -> Result<(), &'static str> {
             for y in 0..self.virt_res.1 {
                 for x in 0..self.virt_res.0 {

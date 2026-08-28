@@ -25,8 +25,14 @@ build:
     rust-objcopy {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
     cargo run -p mk-kernel8 {{boot_bin}} {{kernel_bin}} {{kernel8}}
 
-run: build
-    qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel8}}
+[parallel]
+run: qemu-run qemu-gpio-input
+
+qemu-gpio-input:
+    cargo run -p qemu-gpio-input
+
+qemu-run: build
+    qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel8}} -qtest tcp:127.0.0.1:5000,server,nowait
 
 asm: build
     qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel8}}

@@ -195,7 +195,7 @@ pub unsafe fn enable_mmu() {
 
     // switch mmu on
     aarch64_cpu::asm::barrier::isb(aarch64_cpu::asm::barrier::SY);
-    registers::SCTLR_EL1.modify(registers::SCTLR_EL1::M::SET);
+    registers::SCTLR_EL1.modify(registers::SCTLR_EL1::I::SET + registers::SCTLR_EL1::M::SET);
     aarch64_cpu::asm::barrier::isb(aarch64_cpu::asm::barrier::SY);
 }
 
@@ -276,7 +276,7 @@ pub unsafe fn create_initial_mappings() {
             0x3b40_0000 + UPPER_31_BITS,
             0x3b40_0000,
             0x4C0,
-            MemoryAttribute::Device,
+            MemoryAttribute::Memory,
             TT_access::Identity,
         );
     }
