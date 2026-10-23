@@ -5,6 +5,7 @@
 mod console;
 mod driver;
 mod exception;
+mod fat32;
 mod mmio;
 mod userspace;
 
