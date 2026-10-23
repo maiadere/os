@@ -17,6 +17,7 @@ use driver::{uart0, videocore::framebuffer::Framebuffer};
 use heapless::format;
 
 use crate::driver::{
+    sd_spi::{self, parse_mbr},
     spi,
     videocore::mailbox::{
         PropertyTag, mailbox_property_send,
@@ -35,16 +36,16 @@ fn kernel_main() -> ! {
         memory::mmu::post_boot_mappings();
     }
 
-    let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
-
-    log!(750; "{}\n", include_str!("../assets/logo.txt"));
+    // let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
+    //
+    // log!(750; "{}\n", include_str!("../assets/logo.txt"));
 
     // at this point the exceptions, uart printing and virtual memory are set up
     log!(100; "Running kernel_main at address {:p}\n", kernel_main as *const ());
     log!(20; "Current EL: {}\n", ((&registers::CurrentEL).get()) >> 2);
     log!(100; "Address in vbar_el1: {:p}\n", VBAR_EL1.get() as *const ());
     log!(100; "Current stack pointer: {:p}\n", registers::SP.get() as *const ());
-    log!(100; "Framebuffer address: {:p}\n", fb.addr as *const ());
+    // log!(100; "Framebuffer address: {:p}\n", fb.addr as *const ());
 
     log!(100; "Board model: {}\n", mailbox_property_send(PropertyTag::new(GET_BOARD_MODEL, 0u32))
         .unwrap()
@@ -75,10 +76,23 @@ fn kernel_main() -> ! {
         .value;
     log!(100; "Measured clock rate: {:.2}GHz\n\n", clock_rate.1 as f64 / 1e9);
 
-    console::render(&fb);
+    // console::render(&fb);
 
     unsafe { spi::initialize_spi0() };
+    unsafe { sd_spi::initalize_sd_spi().unwrap() };
+    let mbr = sd_spi::read_sd_block(0).unwrap();
+    let partition_table = parse_mbr(&mbr);
+    log!(1024;"{:?}\n", partition_table);
 
+    // let partition_bytes = &mbr[0x1be..];
+    //
+    // for (idx, byte) in mbr.iter().enumerate() {
+    //     log!(3; "{:2x} ", *byte);
+    //     if idx % 32 == 0 && idx != 0 {
+    //         log!(1;"\n");
+    //     }
+    // }
+    // log!(1;"\n");
     panic!("kernel over");
     // let test_code: [u8; _] = [
     //     0x1f, 0x20, 0x03, 0xd5, //nop

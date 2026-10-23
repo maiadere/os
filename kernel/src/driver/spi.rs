@@ -1,5 +1,5 @@
 use crate::{
-    driver::{PERIPHERAL_BASE, gpio},
+    driver::{PERIPHERAL_BASE, gpio, timer},
     log,
     mmio::{read_mmio, write_mmio},
 };
@@ -21,36 +21,50 @@ unsafe fn rx_fifo_contains_data() -> bool {
     return control_reg & (1 << 17) != 0;
 }
 
-fn sync_spi_write(bytes: &[u32]) {
+pub fn spi_write_bytes_sync(bytes: &[u8]) {
     for byte in bytes {
-        loop {
-            if unsafe { can_tx_fifo_accept_data() } {
-                break;
-            }
-        }
         // log!(100;"writing {:x} to sdspi\n", *byte);
-        unsafe { write_mmio(SPI0_FIFO, *byte) };
-        loop {
-            if unsafe { rx_fifo_contains_data() } {
-                break;
-            }
-        }
-        let res = unsafe { read_mmio(SPI0_FIFO) };
-        if res != 0 {
-            log!(100;"got non zero return");
-        }
-        // log!(100; "sdspi returned {}\n", res);
+        let _res = spi_send_byte_sync(*byte);
+        // log!(100; "sdspi returned {:x}\n", res);
     }
 }
 
+pub fn spi_send_byte_sync(byte: u8) -> u8 {
+    loop {
+        if unsafe { can_tx_fifo_accept_data() } {
+            break;
+        }
+    }
+    unsafe { write_mmio(SPI0_FIFO, byte as u32) };
+    loop {
+        if unsafe { rx_fifo_contains_data() } {
+            break;
+        }
+    }
+    // mmio reads from SPI in single byte mode will always fit in u8
+    unsafe { read_mmio(SPI0_FIFO) as u8 }
+}
+
+pub unsafe fn spi0_set_ta(enable: bool) {
+    if enable {
+        let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
+        let control_reg = control_reg | 1 << 7; //ta enable
+        unsafe { write_mmio(SPI0_CONTROL_AND_STATUS, control_reg) };
+    } else {
+        let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
+        let control_reg = control_reg & !(1 << 7); //ta disable
+        unsafe { write_mmio(SPI0_CONTROL_AND_STATUS, control_reg) };
+    }
+}
+
+/// initializes the spi0 into a mode which allows communication with an sd card
 pub unsafe fn initialize_spi0() {
     // it seems that cpol and cpha should be set to 0 which is the default
     // cspol should also be set to 0 which means active low
     //
     // i think the core clock is at 500 Mhz and so the divisor to get 400 khz would be 1250, gonna
-    // set it to 1300 to be safe
-    log!(100;"clock div");
-    unsafe { write_mmio(SPI0_CLK_DIVIDER, 1300) }
+    // set it to 1500 to be safe
+    unsafe { write_mmio(SPI0_CLK_DIVIDER, 1500) }
 
     gpio::set_pin_mode(7, gpio::PinMode::Alt0); //spi0 chip select 1
     gpio::set_pin_mode(8, gpio::PinMode::Alt0); //spi0 chip select 0
@@ -58,33 +72,8 @@ pub unsafe fn initialize_spi0() {
     gpio::set_pin_mode(10, gpio::PinMode::Alt0); //spi0 mosi
     gpio::set_pin_mode(11, gpio::PinMode::Alt0); //spi0 clock
 
-    let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
-    let control_reg = control_reg | 1 << 7; //ta enable
-    unsafe { write_mmio(SPI0_CONTROL_AND_STATUS, control_reg) };
+    unsafe { spi0_set_ta(true) };
 
-    let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
-    log!(100; "control reg contents: {:32b}\n", control_reg);
-
-    let necessary_bytes = [0xffffffff; 20];
-    sync_spi_write(&necessary_bytes);
-
-    //enable and disable necessary
-    let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
-    let control_reg = control_reg & !(1 << 7); //ta disable
-    unsafe { write_mmio(SPI0_CONTROL_AND_STATUS, control_reg) };
-    let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
-    let control_reg = control_reg | 1 << 7; //ta enable
-    unsafe { write_mmio(SPI0_CONTROL_AND_STATUS, control_reg) };
-
-    // binary cmd0: 0b01_000000_0000000000000000000000000000_1001010_1
-    let cmd0 = [0x40000000, 0x0095ffff];
-    for _ in 0..100 {
-        sync_spi_write(&cmd0);
-        sync_spi_write(&necessary_bytes); // wait for response
-    }
-    let cmd8 = [0x48000001, 0xaa87ffff];
-    for _ in 0..100 {
-        sync_spi_write(&cmd8);
-        sync_spi_write(&necessary_bytes); // wait for response
-    }
+    // let control_reg = unsafe { read_mmio(SPI0_CONTROL_AND_STATUS) };
+    // log!(100; "control reg contents: {:32b}\n", control_reg);
 }
