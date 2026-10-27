@@ -13,20 +13,23 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable, VBAR_EL1},
 };
-use core::{arch::asm, panic::PanicInfo};
+use core::{arch::asm, ops::ControlFlow, panic::PanicInfo};
 use driver::{uart0, videocore::framebuffer::Framebuffer};
 use heapless::format;
 
-use crate::driver::{
-    sd_spi::{self, parse_mbr},
-    spi,
-    videocore::mailbox::{
-        PropertyTag, mailbox_property_send,
-        property::{
-            GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
-            GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+use crate::{
+    driver::{
+        sd_spi::{self, parse_mbr},
+        spi,
+        videocore::mailbox::{
+            PropertyTag, mailbox_property_send,
+            property::{
+                GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
+                GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+            },
         },
     },
+    fat32::{DirEntry, Fat32, find_partition_start},
 };
 
 fn kernel_main() -> ! {
@@ -81,9 +84,13 @@ fn kernel_main() -> ! {
 
     unsafe { spi::initialize_spi0() };
     unsafe { sd_spi::initalize_sd_spi().unwrap() };
-    let mbr = sd_spi::read_sd_block(0).unwrap();
-    let partition_table = parse_mbr(&mbr);
-    log!(1024;"{:?}\n", partition_table);
+    let start = find_partition_start().unwrap();
+    log!(100; "found fat partition at: {}\n", &start);
+    let fat = Fat32::mount(start).unwrap();
+    print_tree(&fat, &fat.root(), 0);
+    // let mbr = sd_spi::read_sd_block(0).unwrap();
+    // let partition_table = parse_mbr(&mbr);
+    // log!(1024;"{:?}\n", partition_table);
 
     // let partition_bytes = &mbr[0x1be..];
     //
@@ -117,6 +124,18 @@ fn kernel_main() -> ! {
     // let test = driver::sdhci::test_presence();
     // log!(100;"sdhci presence: {:b}\n", test);
     // panic!("kernel over");
+}
+fn print_tree(fs: &Fat32, dir: &DirEntry, depth: usize) {
+    fs.read_dir(dir, |x| {
+        for _ in 0..depth {
+            log!(2; "  ");
+        }
+        log!(1000; "{}\n",x.name());
+        if x.is_dir && x.name() != "." && x.name() != ".." {
+            print_tree(fs, x, depth + 1);
+        }
+        ControlFlow::<()>::Continue(())
+    });
 }
 
 #[unsafe(no_mangle)]
