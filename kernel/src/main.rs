@@ -5,6 +5,7 @@
 mod console;
 mod driver;
 mod exception;
+mod fat32;
 mod mmio;
 mod userspace;
 
@@ -12,16 +13,23 @@ use aarch64_cpu::{
     asm,
     registers::{self, Readable, VBAR_EL1},
 };
-use core::{arch::asm, panic::PanicInfo};
+use core::{arch::asm, ops::ControlFlow, panic::PanicInfo};
 use driver::{uart0, videocore::framebuffer::Framebuffer};
 use heapless::format;
 
-use crate::driver::videocore::mailbox::{
-    PropertyTag, mailbox_property_send,
-    property::{
-        GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
-        GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+use crate::{
+    driver::{
+        sd_spi::{self, parse_mbr},
+        spi,
+        videocore::mailbox::{
+            PropertyTag, mailbox_property_send,
+            property::{
+                GET_ARM_MEMORY, GET_BOARD_MAC_ADDRESS, GET_BOARD_MODEL, GET_BOARD_SERIAL,
+                GET_CLOCK_RATE_MEASURED, GET_VC_MEMORY,
+            },
+        },
     },
+    fat32::{DirEntry, Fat32, find_partition_start},
 };
 
 fn kernel_main() -> ! {
@@ -32,16 +40,16 @@ fn kernel_main() -> ! {
         memory::mmu::post_boot_mappings();
     }
 
-    let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
-
-    log!(750; "{}\n", include_str!("../assets/logo.txt"));
+    // let fb = Framebuffer::init(1024, 600, 32, 1).unwrap();
+    //
+    // log!(750; "{}\n", include_str!("../assets/logo.txt"));
 
     // at this point the exceptions, uart printing and virtual memory are set up
     log!(100; "Running kernel_main at address {:p}\n", kernel_main as *const ());
     log!(20; "Current EL: {}\n", ((&registers::CurrentEL).get()) >> 2);
     log!(100; "Address in vbar_el1: {:p}\n", VBAR_EL1.get() as *const ());
     log!(100; "Current stack pointer: {:p}\n", registers::SP.get() as *const ());
-    log!(100; "Framebuffer address: {:p}\n", fb.addr as *const ());
+    // log!(100; "Framebuffer address: {:p}\n", fb.addr as *const ());
 
     log!(100; "Board model: {}\n", mailbox_property_send(PropertyTag::new(GET_BOARD_MODEL, 0u32))
         .unwrap()
@@ -70,15 +78,64 @@ fn kernel_main() -> ! {
     let clock_rate = mailbox_property_send(PropertyTag::new(GET_CLOCK_RATE_MEASURED, (3u32, 0u32)))
         .unwrap()
         .value;
-    log!(100; "Measured clock rate: {:.2}GHz\n", clock_rate.1 as f64 / 1e9);
+    log!(100; "Measured clock rate: {:.2}GHz\n\n", clock_rate.1 as f64 / 1e9);
 
-    console::render(&fb);
+    // console::render(&fb);
 
-    let test_code: [u8; _] = [
-        0x1f, 0x20, 0x03, 0xd5, //nop
-        0x01, 0x00, 0x00, 0xd4, //svc #0
-    ];
-    userspace::load_program(&test_code);
+    unsafe { spi::initialize_spi0() };
+    unsafe { sd_spi::initalize_sd_spi().unwrap() };
+    let start = find_partition_start().unwrap();
+    log!(100; "found fat partition at: {}\n", &start);
+    let fat = Fat32::mount(start).unwrap();
+    print_tree(&fat, &fat.root(), 0);
+    // let mbr = sd_spi::read_sd_block(0).unwrap();
+    // let partition_table = parse_mbr(&mbr);
+    // log!(1024;"{:?}\n", partition_table);
+
+    // let partition_bytes = &mbr[0x1be..];
+    //
+    // for (idx, byte) in mbr.iter().enumerate() {
+    //     log!(3; "{:2x} ", *byte);
+    //     if idx % 32 == 0 && idx != 0 {
+    //         log!(1;"\n");
+    //     }
+    // }
+    // log!(1;"\n");
+    panic!("kernel over");
+    // let test_code: [u8; _] = [
+    //     0x1f, 0x20, 0x03, 0xd5, //nop
+    //     0x21, 0x00, 0x00, 0xd4, //svc #1
+    //     0x41, 0x00, 0x00, 0xd4, //svc #2
+    //     0x01, 0x00, 0x00, 0xd4, //svc #0
+    // ];
+    // let test_code: [u8; _] = [
+    //     0xa0, 0x00, 0x00, 0x10, //
+    //     0x81, 0x01, 0x80, 0xd2, //
+    //     0x21, 0x00, 0x00, 0xd4, //
+    //     0x00, 0x00, 0x00, 0x10, //
+    //     0x01, 0x00, 0x00, 0xd4, //
+    //     0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
+    // ];
+    // unsafe { userspace::load_program(&test_code) };
+    // let test = driver::sdhci::muxing_state();
+    // log!(100;"muxing state: {:b}\n", test);
+    // let test = driver::sdhci::test_capabilities();
+    // log!(100;"sdhci capabilities: {:b}\n", test);
+    // let test = driver::sdhci::test_presence();
+    // log!(100;"sdhci presence: {:b}\n", test);
+    // panic!("kernel over");
+}
+fn print_tree(fs: &Fat32, dir: &DirEntry, depth: usize) {
+    fs.read_dir(dir, |x| {
+        for _ in 0..depth {
+            log!(2; "  ");
+        }
+        log!(1000; "{}\n",x.name());
+        if x.is_dir && x.name() != "." && x.name() != ".." {
+            print_tree(fs, x, depth + 1);
+        }
+        ControlFlow::<()>::Continue(())
+    });
 }
 
 #[unsafe(no_mangle)]
