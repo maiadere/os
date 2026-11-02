@@ -248,7 +248,7 @@ const KERNEL_MEMORY: u64 = KERNEL_PAGE_COUNT * PAGE_SIZE;
 
 // how many pages of memory the userspace gets for code + stack + heap
 const USER_PAGE_COUNT: u64 = 64;
-const USER_MEMORY: u64 = USER_PAGE_COUNT * PAGE_SIZE;
+pub const USER_MEMORY: u64 = USER_PAGE_COUNT * PAGE_SIZE;
 
 pub unsafe fn create_initial_mappings() {
     unsafe {
