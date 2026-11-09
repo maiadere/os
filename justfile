@@ -18,20 +18,20 @@ kernel_rustflags := "-C link-arg=--script=kernel/kernel.ld -C target-feature=+ne
 default:
     just --list
 
-build:
+build *flags:
     RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}}
     rust-objcopy {{boot_elf}} --strip-all -O binary {{boot_bin}}
-    RUSTFLAGS="{{kernel_rustflags}}" cargo rustc -p kernel --release --target {{target}}
+    RUSTFLAGS="{{kernel_rustflags}}" cargo rustc -p kernel --release --target {{target}} {{flags}}
     rust-objcopy {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
     cargo run -p mk-kernel8 {{boot_bin}} {{kernel_bin}} {{kernel8}}
 
-run: build
+run: (build "--features qemu")
     qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel8}}
 
-asm: build
+asm: (build "--features qemu")
     qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel8}}
 
-monitor: build
+monitor: (build "--features qemu")
     qemu-system-aarch64 -monitor stdio -M raspi4b -kernel {{kernel8}}
 
 sdspi: build

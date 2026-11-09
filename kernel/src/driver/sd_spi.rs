@@ -193,6 +193,30 @@ pub fn receive_sd_data_packet() -> Result<[u8; 512], &'static str> {
     }
 }
 
+#[cfg(feature = "qemu")]
+static SD_IMAGE: &[u8] = include_bytes!("../../assets/sd.img");
+
+#[cfg(feature = "qemu")]
+const SD_SIZE: usize = 64 * 1024 * 1024;
+
+#[cfg(feature = "qemu")]
+pub fn read_sd_block(addr: u32) -> Result<[u8; 512], &'static str> {
+    let start = addr as usize * 512;
+    if start + 512 > SD_SIZE {
+        return Err("block address out of range of sd card");
+    }
+    return Ok(match SD_IMAGE.get(start..start + 512) {
+        Some(block) => block.try_into().unwrap(),
+        None => [0; 512],
+    });
+}
+
+#[cfg(feature = "qemu")]
+pub unsafe fn initalize_sd_spi() -> Result<(), &'static str> {
+    return Ok(());
+}
+
+#[cfg(not(feature = "qemu"))]
 pub fn read_sd_block(addr: u32) -> Result<[u8; 512], &'static str> {
     let res = send_sd_command(CMD17 { addr }).ok_or("timed out waiting for SD response ")?;
     if res.0 != 0x0 {
@@ -202,6 +226,7 @@ pub fn read_sd_block(addr: u32) -> Result<[u8; 512], &'static str> {
     return receive_sd_data_packet();
 }
 
+#[cfg(not(feature = "qemu"))]
 pub unsafe fn initalize_sd_spi() -> Result<(), &'static str> {
     // send dummy clock cycles to the sd as per documentation
     let padding_bytes = [0xff; 160];

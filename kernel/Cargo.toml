@@ -9,6 +9,9 @@ test = false
 doctest = false
 bench = false
 
+[features]
+qemu = []
+
 [dependencies]
 aarch64-cpu = "10.0.0"
 heapless = "0.9.1"

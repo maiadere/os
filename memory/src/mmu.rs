@@ -242,7 +242,7 @@ const TOTAL_PAGE_COUNT: u64 = 15168;
 // NOTE: 1 MiB is 16 pages
 
 // how many pages of memory the kernel gets for code and its stack
-const KERNEL_PAGE_COUNT: u64 = 16;
+const KERNEL_PAGE_COUNT: u64 = 48;
 // how much memory that corresponds to
 const KERNEL_MEMORY: u64 = KERNEL_PAGE_COUNT * PAGE_SIZE;
 
