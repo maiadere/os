@@ -1,2 +1,5 @@
 /target
 sdcard.img
+/.direnv
+/.vscode
+.envrc

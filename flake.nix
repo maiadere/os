@@ -38,8 +38,8 @@
               pkgs.gdb
             ] ++ x11Libs;
 
+            env.RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
             env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath x11Libs;
-
             shellHook = ''
               echo "rustc:  $(rustc --version)"
               echo "qemu:   $(qemu-system-aarch64 --version | head -1)"
