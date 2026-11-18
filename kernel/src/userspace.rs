@@ -1,8 +1,8 @@
 use core::arch;
 
 use aarch64_cpu::registers::{
-    self, DAIF, ELR_EL1, ReadWriteable,
-    SPSR_EL1::{self, A, D, F, I, IL, M, SS},
+    self, ReadWriteable,
+    SPSR_EL1::{A, D, F, I, IL, M, SS},
 };
 use registers::Writeable;
 
@@ -26,6 +26,10 @@ pub unsafe fn load_program(code: &[u8]) -> ! {
     // TODO: zero out bss
 
     init_buttons();
+
+    // a bit of a hack to definitely clear the M (not M[3:0]) bit
+    // to select AArch64 as the userspace execution state
+    registers::SPSR_EL1.set(0x0);
 
     //mask all exceptions for now
     registers::SPSR_EL1.modify(D::Masked);
