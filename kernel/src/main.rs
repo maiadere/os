@@ -82,12 +82,12 @@ fn kernel_main() -> ! {
 
     // console::render(&fb);
 
-    unsafe { spi::initialize_spi0() };
-    unsafe { sd_spi::initalize_sd_spi().unwrap() };
-    let start = find_partition_start().unwrap();
-    log!(100; "found fat partition at: {}\n", &start);
-    let fat = Fat32::mount(start).unwrap();
-    print_tree(&fat, &fat.root(), 0);
+    // unsafe { spi::initialize_spi0() };
+    // unsafe { sd_spi::initalize_sd_spi().unwrap() };
+    // let start = find_partition_start().unwrap();
+    // log!(100; "found fat partition at: {}\n", &start);
+    // let fat = Fat32::mount(start).unwrap();
+    // print_tree(&fat, &fat.root(), 0);
     // let mbr = sd_spi::read_sd_block(0).unwrap();
     // let partition_table = parse_mbr(&mbr);
     // log!(1024;"{:?}\n", partition_table);
@@ -101,22 +101,22 @@ fn kernel_main() -> ! {
     //     }
     // }
     // log!(1;"\n");
+    let test_code: [u8; _] = [
+        0x1f, 0x20, 0x03, 0xd5, //nop
+        0x21, 0x00, 0x00, 0xd4, //svc #1
+        0x41, 0x00, 0x00, 0xd4, //svc #2
+        0x01, 0x00, 0x00, 0xd4, //svc #0
+    ];
+    let test_code: [u8; _] = [
+        0xa0, 0x00, 0x00, 0x10, //
+        0x81, 0x01, 0x80, 0xd2, //
+        0x21, 0x00, 0x00, 0xd4, //
+        0x00, 0x00, 0x00, 0x10, //
+        0x01, 0x00, 0x00, 0xd4, //
+        0x48, 0x65, 0x6c, 0x6c, 0x6a, 0x2d, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
+    ];
+    unsafe { userspace::load_program(userspace::syscall_test_program()) };
     panic!("kernel over");
-    // let test_code: [u8; _] = [
-    //     0x1f, 0x20, 0x03, 0xd5, //nop
-    //     0x21, 0x00, 0x00, 0xd4, //svc #1
-    //     0x41, 0x00, 0x00, 0xd4, //svc #2
-    //     0x01, 0x00, 0x00, 0xd4, //svc #0
-    // ];
-    // let test_code: [u8; _] = [
-    //     0xa0, 0x00, 0x00, 0x10, //
-    //     0x81, 0x01, 0x80, 0xd2, //
-    //     0x21, 0x00, 0x00, 0xd4, //
-    //     0x00, 0x00, 0x00, 0x10, //
-    //     0x01, 0x00, 0x00, 0xd4, //
-    //     0x48, 0x65, 0x6c, 0x6c, 0x6f, 0x20, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
-    // ];
-    // unsafe { userspace::load_program(&test_code) };
     // let test = driver::sdhci::muxing_state();
     // log!(100;"muxing state: {:b}\n", test);
     // let test = driver::sdhci::test_capabilities();

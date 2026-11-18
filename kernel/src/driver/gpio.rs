@@ -137,3 +137,20 @@ pub fn set_pull_mode(pin_idx: usize, mode: PullMode) {
         write_mmio(reg_addr, reg_state);
     }
 }
+
+pub fn get_pin_state(pin_idx: usize) -> bool {
+    if pin_idx > 57 {
+        panic!("GPIO pin index out of range");
+    }
+
+    let reg_addr = if pin_idx < 32 {
+        reg::GPLEV0
+    } else {
+        reg::GPLEV1
+    };
+
+    let reg_state = unsafe { read_mmio(reg_addr) };
+    asm::barrier::dmb(asm::barrier::SY);
+
+    (reg_state & (1 << (pin_idx % 32))) != 0
+}
