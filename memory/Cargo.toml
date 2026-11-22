@@ -3,5 +3,8 @@ name = "memory"
 version = "0.1.0"
 edition = "2024"
 
+[features]
+qemu = []
+
 [dependencies]
 aarch64-cpu = "10.0.0"

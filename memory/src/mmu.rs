@@ -242,7 +242,11 @@ const TOTAL_PAGE_COUNT: u64 = 15168;
 // NOTE: 1 MiB is 16 pages
 
 // how many pages of memory the kernel gets for code and its stack
-const KERNEL_PAGE_COUNT: u64 = 48;
+#[cfg(not(feature = "qemu"))]
+const KERNEL_PAGE_COUNT: u64 = 16;
+// in qemu the kernel image also embeds the fake sd card (up to 64 MiB = 1024 pages)
+#[cfg(feature = "qemu")]
+const KERNEL_PAGE_COUNT: u64 = 16 + 1024;
 // how much memory that corresponds to
 const KERNEL_MEMORY: u64 = KERNEL_PAGE_COUNT * PAGE_SIZE;
 

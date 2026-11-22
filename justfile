@@ -19,7 +19,7 @@ default:
     just --list
 
 build *flags:
-    RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}}
+    RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}} {{flags}}
     rust-objcopy {{boot_elf}} --strip-all -O binary {{boot_bin}}
     RUSTFLAGS="{{kernel_rustflags}}" cargo rustc -p kernel --release --target {{target}} {{flags}}
     rust-objcopy {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
