@@ -194,7 +194,7 @@ pub fn receive_sd_data_packet() -> Result<[u8; 512], &'static str> {
 }
 
 #[cfg(feature = "qemu")]
-static SD_IMAGE: &[u8] = include_bytes!("../../assets/sd.img");
+static SD_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/sd.img"));
 
 #[cfg(feature = "qemu")]
 const SD_SIZE: usize = 64 * 1024 * 1024;

@@ -1,2 +1,3 @@
 /target
-sdcard.img
+/sd/*
+!/sd/.gitkeep

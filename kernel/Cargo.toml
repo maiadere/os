@@ -16,3 +16,6 @@ qemu = ["memory/qemu"]
 aarch64-cpu = "10.0.0"
 heapless = "0.9.1"
 memory = {path = "../memory"}
+
+[build-dependencies]
+fatfs = "0.3.6"
