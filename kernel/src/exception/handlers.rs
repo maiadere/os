@@ -63,6 +63,7 @@ const SYS_PRINT: u64 = 1;
 const SYS_GET_TIME: u64 = 2;
 const SYS_DUMP_REGISTERS: u64 = 3;
 const SYS_READ_BUTTONS: u64 = 4;
+const SYS_LOAD_PROGRAM: u64 = 5;
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut SavedRegisters) {
@@ -80,6 +81,7 @@ unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut Sa
             SYS_GET_TIME => return sys_get_time(regs),
             SYS_DUMP_REGISTERS => return sys_dump_registers(regs),
             SYS_READ_BUTTONS => return sys_read_buttons(regs),
+            SYS_LOAD_PROGRAM => return sys_load_program_from_path(regs),
             _ => {
                 log!(100; "svc called with unsupported value, exiting process\n");
             }
@@ -95,6 +97,53 @@ unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut Sa
     }
 
     panic!("exception from userspace, halting execution");
+}
+
+// the longest path load_program accepts
+const MAX_PATH_LEN: usize = 255;
+
+// load_program:
+// takes pointer to the path in x0 and its length in x1
+// on success replaces the current program with the loaded one, and doesn't return
+// on failure it returns 1 in x0, logs the reason, and the caller keeps running
+fn sys_load_program_from_path(regs: &mut SavedRegisters) {
+    let count = regs.x1 as usize;
+    if count > MAX_PATH_LEN {
+        log!(100; "requested path is too long\n");
+        regs.x0 = 1;
+        return;
+    }
+
+    let start: *const u8 = ptr::with_exposed_provenance(regs.x0 as usize);
+    let end: *const u8 = ptr::with_exposed_provenance(regs.x0 as usize + count);
+
+    if !check_userspace_pointer(start) || !check_userspace_pointer(end) {
+        log!(100; "userspace provided pointers are invalid\n");
+        regs.x0 = 1;
+        return;
+    }
+
+    // the path has to be copied out of userspace before loading,
+    // as the program image is read over the memory it is stored in
+    let mut buff: Vec<u8, MAX_PATH_LEN> = Vec::new();
+
+    let data = slice_from_raw_parts(start, count);
+    buff.extend_from_slice(unsafe { &*data }).unwrap();
+
+    let Ok(path) = core::str::from_utf8(&buff) else {
+        log!(50; "path contains invalid utf8\n");
+        regs.x0 = 1;
+        return;
+    };
+
+    if let Err(error) = unsafe { userspace::load_program_from_path(path) } {
+        log!(300; "could not load {}: {:?}\n", path, error);
+        regs.x0 = 1;
+        return;
+    }
+
+    // after loading the new program, the kernel has to set up the state for an eret to enter it in el0
+    unsafe { userspace::set_el0_return_state() };
 }
 
 // print:

@@ -92,45 +92,17 @@ fn kernel_main() -> ! {
     let partition_table = parse_mbr(&mbr);
     log!(1024;"{:?}\n", partition_table);
 
-    // let partition_bytes = &mbr[0x1be..];
-    //
-    // for (idx, byte) in mbr.iter().enumerate() {
-    //     log!(3; "{:2x} ", *byte);
-    //     if idx % 32 == 0 && idx != 0 {
-    //         log!(1;"\n");
-    //     }
-    // }
-    // log!(1;"\n");
-    let test_code: [u8; _] = [
-        0x1f, 0x20, 0x03, 0xd5, //nop
-        0x21, 0x00, 0x00, 0xd4, //svc #1
-        0x41, 0x00, 0x00, 0xd4, //svc #2
-        0x01, 0x00, 0x00, 0xd4, //svc #0
-    ];
-    let test_code: [u8; _] = [
-        0xa0, 0x00, 0x00, 0x10, //
-        0x81, 0x01, 0x80, 0xd2, //
-        0x21, 0x00, 0x00, 0xd4, //
-        0x00, 0x00, 0x00, 0x10, //
-        0x01, 0x00, 0x00, 0xd4, //
-        0x48, 0x65, 0x6c, 0x6c, 0x6a, 0x2d, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
-    ];
-    // unsafe { userspace::load_program(userspace::syscall_test_program()) };
-    let shell = fat.open("/system/shell").unwrap();
+    if let Err(error) = unsafe { fat32::mount_sd_card() } {
+        log!(200; "could not mount the sd card: {:?}\n", error);
+    };
+    let shell = fat32::mounted().unwrap().open("/system/shell").unwrap();
     let mut program = [0u8; 64 * 1024];
+    let len = fat.read_file(&shell, &mut program).unwrap();
+    log!(100; "loading /system/shell ({} bytes)\n", len);
     if shell.size as usize > program.len() {
         panic!("/system/shell is too big: {} bytes", shell.size);
     }
-    let len = fat.read_file(&shell, &mut program).unwrap();
-    log!(100; "loading /system/shell ({} bytes)\n", len);
     unsafe { userspace::load_program(&program[..len]) };
-    // let test = driver::sdhci::muxing_state();
-    // log!(100;"muxing state: {:b}\n", test);
-    // let test = driver::sdhci::test_capabilities();
-    // log!(100;"sdhci capabilities: {:b}\n", test);
-    // let test = driver::sdhci::test_presence();
-    // log!(100;"sdhci presence: {:b}\n", test);
-    // panic!("kernel over");
 }
 fn print_tree(fs: &Fat32, dir: &DirEntry, depth: usize) {
     fs.read_dir(dir, |x| {
