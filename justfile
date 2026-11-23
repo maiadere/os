@@ -12,15 +12,20 @@ kernel_bin := target_path + "/kernel.bin"
 
 kernel8 := target_path + "/kernel8.img"
 
+shell_elf := target_path + "/shell"
+
 boot_rustflags := "-C link-arg=--script=boot/boot.ld"
 kernel_rustflags := "-C link-arg=--script=kernel/kernel.ld -C target-feature=+neon"
+shell_rustflags := "-C link-arg=--script=shell/shell.ld"
 
 default:
     just --list
 
 build *flags:
-    RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}}
+    RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}} {{flags}}
     rust-objcopy {{boot_elf}} --strip-all -O binary {{boot_bin}}
+    RUSTFLAGS="{{shell_rustflags}}" cargo rustc -p shell --release --target {{target}}
+    rust-objcopy {{shell_elf}} --strip-all -O binary sd/system/shell
     RUSTFLAGS="{{kernel_rustflags}}" cargo rustc -p kernel --release --target {{target}} {{flags}}
     rust-objcopy {{kernel_elf}} --strip-all -O binary {{kernel_bin}}
     cargo run -p mk-kernel8 {{boot_bin}} {{kernel_bin}} {{kernel8}}

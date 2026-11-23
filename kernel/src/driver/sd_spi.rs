@@ -194,10 +194,13 @@ pub fn receive_sd_data_packet() -> Result<[u8; 512], &'static str> {
 }
 
 #[cfg(feature = "qemu")]
-static SD_IMAGE: &[u8] = include_bytes!("../../assets/sd.img");
+static SD_IMAGE: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/sd.img"));
 
 #[cfg(feature = "qemu")]
 const SD_SIZE: usize = 64 * 1024 * 1024;
+
+#[cfg(feature = "qemu")]
+const _: () = assert!(SD_IMAGE.len() <= SD_SIZE, "sd.img is larger than 64 MiB");
 
 #[cfg(feature = "qemu")]
 pub fn read_sd_block(addr: u32) -> Result<[u8; 512], &'static str> {

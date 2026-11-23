@@ -90,6 +90,8 @@ unsafe fn map_address_range(
     num_pages: u64,
     memory_attribute: MemoryAttribute,
     tt_access: TT_access,
+    // whether el0 (userspace) can read and write the pages, el1 always can
+    el0_access: bool,
 ) {
     assert_eq!(virtual_address_start % PAGE_SIZE, 0);
     assert_eq!(physical_address_start % PAGE_SIZE, 0);
@@ -122,7 +124,8 @@ unsafe fn map_address_range(
             not_global: false,
             access_flag: true,
             shareability: [false; 2],
-            access_permission: [false; 2],
+            // AP[2:1]: 00 = el1 rw / el0 none, 01 = el1 rw / el0 rw
+            access_permission: [false, el0_access],
             non_secure: false,
             attributes_index: memory_attribute.to_mair_idx(),
             address: (phys_addr >> 16) as u32,
@@ -242,7 +245,11 @@ const TOTAL_PAGE_COUNT: u64 = 15168;
 // NOTE: 1 MiB is 16 pages
 
 // how many pages of memory the kernel gets for code and its stack
-const KERNEL_PAGE_COUNT: u64 = 48;
+#[cfg(not(feature = "qemu"))]
+const KERNEL_PAGE_COUNT: u64 = 16;
+// in qemu the kernel image also embeds the fake sd card (up to 64 MiB = 1024 pages)
+#[cfg(feature = "qemu")]
+const KERNEL_PAGE_COUNT: u64 = 16 + 1024;
 // how much memory that corresponds to
 const KERNEL_MEMORY: u64 = KERNEL_PAGE_COUNT * PAGE_SIZE;
 
@@ -267,6 +274,7 @@ pub unsafe fn create_initial_mappings() {
             KERNEL_PAGE_COUNT,
             MemoryAttribute::Memory,
             TT_access::Identity,
+            false,
         );
     }
 
@@ -278,6 +286,7 @@ pub unsafe fn create_initial_mappings() {
             0x4C0,
             MemoryAttribute::Device,
             TT_access::Identity,
+            false,
         );
     }
 
@@ -289,6 +298,7 @@ pub unsafe fn create_initial_mappings() {
             KERNEL_PAGE_COUNT,
             MemoryAttribute::Memory,
             TT_access::Identity,
+            false,
         );
     }
 
@@ -300,6 +310,7 @@ pub unsafe fn create_initial_mappings() {
             0x400,
             MemoryAttribute::Device,
             TT_access::Identity,
+            false,
         );
     }
 
@@ -311,6 +322,7 @@ pub unsafe fn create_initial_mappings() {
             16,
             MemoryAttribute::Memory,
             TT_access::Identity,
+            false,
         );
     }
     unsafe {
@@ -320,6 +332,7 @@ pub unsafe fn create_initial_mappings() {
             16,
             MemoryAttribute::Memory,
             TT_access::Identity,
+            false,
         );
     }
 }
@@ -348,6 +361,7 @@ pub unsafe fn post_boot_mappings() {
             USER_PAGE_COUNT,
             MemoryAttribute::Memory,
             TT_access::UpperHalf,
+            true,
         )
     }
     //ensure visibility
