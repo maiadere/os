@@ -3,3 +3,4 @@ sdcard.img
 /.direnv
 /.vscode
 .envrc
+/kernel/assets/sd.img

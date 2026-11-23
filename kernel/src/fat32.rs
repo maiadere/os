@@ -61,6 +61,23 @@ pub fn find_partition_start() -> Result<u32, Fat32Error> {
     Ok(partition_start)
 }
 
+static mut MOUNTED: Option<Fat32> = None;
+
+/// brings up the sd card and mounts the fat32 partition on it,
+/// once this succeeds the filesystem is reachable through [`mounted`]
+pub unsafe fn mount_sd_card() -> Result<(), Fat32Error> {
+    unsafe { crate::driver::spi::initialize_spi0() };
+    unsafe { sd_spi::initalize_sd_spi() }.map_err(Fat32Error::SdError)?;
+    let filesystem = Fat32::mount(find_partition_start()?)?;
+    unsafe { MOUNTED = Some(filesystem) };
+    Ok(())
+}
+
+/// the filesystem mounted by [`mount_sd_card`], or None if that never ran or failed
+pub fn mounted() -> Option<&'static Fat32> {
+    unsafe { (*&raw const MOUNTED).as_ref() }
+}
+
 #[derive(Clone, Copy)]
 pub struct Name {
     bytes: [u8; MAX_NAME_LEN],

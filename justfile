@@ -12,13 +12,36 @@ kernel_bin := target_path + "/kernel.bin"
 
 kernel8 := target_path + "/kernel8.img"
 
+# the pristine card image tracked in git, and the one the kernel embeds with programs added
+sd_base := "kernel/assets/sd.img.base"
+sd_img := "kernel/assets/sd.img"
+sd_img_new := "kernel/assets/sd.img.new"
+# byte offset of the fat32 partition in the image, lba 2048 * 512 bytes per sector
+fat_offset := "1048576"
+
 boot_rustflags := "-C link-arg=--script=boot/boot.ld"
 kernel_rustflags := "-C link-arg=--script=kernel/kernel.ld -C target-feature=+neon"
+program_rustflags := "-C relocation-model=static"
 
 default:
     just --list
 
-build *flags:
+# builds one of the crates under programs/ into a flat image the kernel can load as is
+program name:
+    RUSTFLAGS="{{program_rustflags}} -C link-arg=--script=programs/{{name}}/program.ld" cargo rustc -p {{name}} --release --target {{target}}
+    rust-objcopy {{target_path}}/{{name}} --strip-all -O binary {{target_path}}/{{name}}.bin
+
+# rebuilds the card image from the pristine one with the userspace programs copied onto it
+# the kernel embeds this image with include_bytes!, so it has to be up to date before it builds
+# add a program by building it above and giving it another mcopy line here
+sdimg: (program "hello")
+    cp {{sd_base}} {{sd_img_new}}
+    mcopy -o -i {{sd_img_new}}@@{{fat_offset}} {{target_path}}/hello.bin ::/HELLO.BIN
+    cmp -s {{sd_img_new}} {{sd_img}} || mv -f {{sd_img_new}} {{sd_img}}
+    rm -f {{sd_img_new}}
+    mdir -i {{sd_img}}@@{{fat_offset}} ::
+
+build *flags: sdimg
     RUSTFLAGS="{{boot_rustflags}}" cargo rustc -p boot --release --target {{target}}
     rust-objcopy {{boot_elf}} --strip-all -O binary {{boot_bin}}
     RUSTFLAGS="{{kernel_rustflags}}" cargo rustc -p kernel --release --target {{target}} {{flags}}

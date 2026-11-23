@@ -115,7 +115,12 @@ fn kernel_main() -> ! {
         0x01, 0x00, 0x00, 0xd4, //
         0x48, 0x65, 0x6c, 0x6c, 0x6a, 0x2d, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
     ];
-    unsafe { userspace::load_program(userspace::syscall_test_program()) };
+
+    if let Err(error) = unsafe { fat32::mount_sd_card() } {
+        log!(200; "could not mount the sd card: {:?}\n", error);
+    }
+
+    unsafe { userspace::load_program(userspace::exec_test_program()) };
     panic!("kernel over");
     // let test = driver::sdhci::muxing_state();
     // log!(100;"muxing state: {:b}\n", test);

@@ -1,4 +1,5 @@
 use core::arch;
+use core::ptr;
 
 use aarch64_cpu::registers::{
     self, DAIF, ELR_EL1, ReadWriteable,
@@ -7,6 +8,7 @@ use aarch64_cpu::registers::{
 use registers::Writeable;
 
 use crate::driver::gpio::{self, PinMode, PullMode};
+use crate::fat32::{self, Fat32Error};
 
 //stack starts at 0x8_0000 and grows downwards to 0x0
 const STACK_BASE: usize = 0x8_0000;
@@ -27,6 +29,16 @@ pub unsafe fn load_program(code: &[u8]) -> ! {
 
     init_buttons();
 
+    unsafe { set_el0_return_state() };
+
+    unsafe {
+        arch::asm!("eret");
+    }
+    unreachable!()
+}
+
+/// sets up the state an eret needs to enter the loaded program in el0
+pub unsafe fn set_el0_return_state() {
     //mask all exceptions for now
     registers::SPSR_EL1.modify(D::Masked);
     registers::SPSR_EL1.modify(A::Masked);
@@ -41,11 +53,46 @@ pub unsafe fn load_program(code: &[u8]) -> ! {
     registers::ELR_EL1.set(STACK_BASE as u64);
     // set simulated exception stack pointer
     registers::SP_EL0.set(STACK_BASE as u64);
-    // perform simulated exception return
-    unsafe {
-        arch::asm!("eret");
+}
+
+#[derive(Debug)]
+pub enum LoadError {
+    NoFilesystem,
+    InvalidSize(u32),
+    ShortRead,
+    Filesystem(Fat32Error),
+}
+
+/// reads the program at 'path' off the sd card into the memory
+/// 
+pub unsafe fn load_program_from_path(path: &str) -> Result<(), LoadError> {
+    let filesystem = fat32::mounted().ok_or(LoadError::NoFilesystem)?;
+    let file = filesystem.open(path).map_err(LoadError::Filesystem)?;
+
+    // check if the file is too big to fit in the userspace memory, or if it is empty
+    let size = file.size as usize;
+    if size == 0 || size > memory::mmu::USER_MEMORY as usize - STACK_BASE {
+        return Err(LoadError::InvalidSize(file.size));
     }
-    unreachable!()
+
+    // read the file into the userspace memory, which is where the program will be loaded
+    let destination = unsafe {
+        core::slice::from_raw_parts_mut(ptr::with_exposed_provenance_mut::<u8>(STACK_BASE), size)
+    };
+    
+    let read = filesystem
+        .read_file(&file, destination)
+        .map_err(LoadError::Filesystem)?;
+    if read != size {
+        return Err(LoadError::ShortRead);
+    }
+
+    // flushing instruction cache so that the CPU sees the new instructions
+    unsafe {
+        arch::asm!("dsb sy", "ic iallu", "dsb sy", "isb");
+    }
+
+    Ok(())
 }
 
 fn init_buttons() {
@@ -118,6 +165,41 @@ unsafe extern "C" {
 pub fn syscall_test_program() -> &'static [u8] {
     let start = &raw const syscall_test_program_start;
     let end = &raw const syscall_test_program_end;
+
+    unsafe { core::slice::from_raw_parts(start, end.addr() - start.addr()) }
+}
+
+// test program for the load_program syscall, it asks the kernel to replace it with the program
+// at the path stored after its code, which only returns if loading failed, in which case
+// the error code the syscall left in x0 is reported with a register dump
+arch::global_asm!(
+    ".pushsection .rodata.exec_test_program, \"a\"",
+    ".balign 4",
+    ".global exec_test_program_start",
+    ".global exec_test_program_end",
+    "exec_test_program_start:",
+    "    adr x0, .Lexec_test_path",
+    "    adr x1, .Lexec_test_path_end",
+    "    sub x1, x1, x0",
+    "    svc #5",
+    "    svc #3",
+    "    svc #0",
+    ".Lexec_test_path:",
+    "    .ascii \"/HELLO.BIN\"",
+    ".Lexec_test_path_end:",
+    "exec_test_program_end:",
+    ".popsection",
+);
+
+unsafe extern "C" {
+    static exec_test_program_start: u8;
+    static exec_test_program_end: u8;
+}
+
+/// returns the machine code of the load_program syscall test, to be passed to [`load_program`]
+pub fn exec_test_program() -> &'static [u8] {
+    let start = &raw const exec_test_program_start;
+    let end = &raw const exec_test_program_end;
 
     unsafe { core::slice::from_raw_parts(start, end.addr() - start.addr()) }
 }
