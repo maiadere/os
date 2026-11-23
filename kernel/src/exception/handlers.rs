@@ -140,10 +140,9 @@ fn sys_load_program_from_path(regs: &mut SavedRegisters) {
         log!(300; "could not load {}: {:?}\n", path, error);
         regs.x0 = 1;
         return;
+    } else {
+        unreachable!();
     }
-
-    // after loading the new program, the kernel has to set up the state for an eret to enter it in el0
-    unsafe { userspace::set_el0_return_state() };
 }
 
 // print:

@@ -95,14 +95,17 @@ fn kernel_main() -> ! {
     if let Err(error) = unsafe { fat32::mount_sd_card() } {
         log!(200; "could not mount the sd card: {:?}\n", error);
     };
-    let shell = fat32::mounted().unwrap().open("/system/shell").unwrap();
-    let mut program = [0u8; 64 * 1024];
-    let len = fat.read_file(&shell, &mut program).unwrap();
-    log!(100; "loading /system/shell ({} bytes)\n", len);
-    if shell.size as usize > program.len() {
-        panic!("/system/shell is too big: {} bytes", shell.size);
-    }
-    unsafe { userspace::load_program(&program[..len]) };
+
+    unsafe {
+        match userspace::load_program_from_path("/system/shell") {
+            Ok(_) => {
+                unreachable!();
+            }
+            Err(_) => {
+                panic!("Failed to load shell, exitting kernel.");
+            }
+        }
+    };
 }
 fn print_tree(fs: &Fat32, dir: &DirEntry, depth: usize) {
     fs.read_dir(dir, |x| {

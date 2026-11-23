@@ -25,25 +25,20 @@ pub unsafe fn load_program(code: &[u8]) -> ! {
             ((STACK_BASE + offset) as *mut u8).write_volatile(*byte);
         }
     }
-    // TODO: zero out bss
+    // NOTE: BSS should get zeroed out by the _start of user programs, as we load flat binaries and
+    // have no access to segment data.
 
     init_buttons();
 
-    // a bit of a hack to definitely clear the M (not M[3:0]) bit
-    // to select AArch64 as the userspace execution state
-
-    unsafe { set_el0_return_state() };
-
-    unsafe {
-        arch::asm!("eret");
-    }
-    unreachable!()
+    unsafe { start_executing_el0() };
 }
 
 /// sets up the state an eret needs to enter the loaded program in el0
 pub unsafe fn set_el0_return_state() {
-    //mask all exceptions for now
+    // a bit of a hack to definitely clear the M (not M[3:0]) bit
+    // to select AArch64 as the userspace execution state
     registers::SPSR_EL1.set(0x0);
+    //mask all exceptions for now
     registers::SPSR_EL1.modify(D::Masked);
     registers::SPSR_EL1.modify(A::Masked);
     registers::SPSR_EL1.modify(I::Masked);
@@ -59,6 +54,15 @@ pub unsafe fn set_el0_return_state() {
     registers::SP_EL0.set(STACK_BASE as u64);
 }
 
+unsafe fn start_executing_el0() -> ! {
+    unsafe { set_el0_return_state() };
+    // flush instruction cache so that the CPU sees the new instructions
+    unsafe {
+        arch::asm!("dsb sy", "ic iallu", "dsb sy", "isb");
+    }
+    unsafe { arch::asm!("eret", options(noreturn)) }
+}
+
 #[derive(Debug)]
 pub enum LoadError {
     NoFilesystem,
@@ -67,8 +71,9 @@ pub enum LoadError {
     Filesystem(Fat32Error),
 }
 
-/// reads the program at 'path' off the sd card into the memory
-///
+/// reads the program at 'path' off the sd card into the memory,
+/// then starts executing said program
+/// either succeeds and never returns or returns with error
 pub unsafe fn load_program_from_path(path: &str) -> Result<(), LoadError> {
     let filesystem = fat32::mounted().ok_or(LoadError::NoFilesystem)?;
     let file = filesystem.open(path).map_err(LoadError::Filesystem)?;
@@ -91,12 +96,7 @@ pub unsafe fn load_program_from_path(path: &str) -> Result<(), LoadError> {
         return Err(LoadError::ShortRead);
     }
 
-    // flushing instruction cache so that the CPU sees the new instructions
-    unsafe {
-        arch::asm!("dsb sy", "ic iallu", "dsb sy", "isb");
-    }
-
-    Ok(())
+    unsafe { start_executing_el0() }
 }
 
 fn init_buttons() {
