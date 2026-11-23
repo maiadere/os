@@ -82,15 +82,15 @@ fn kernel_main() -> ! {
 
     // console::render(&fb);
 
-    // unsafe { spi::initialize_spi0() };
-    // unsafe { sd_spi::initalize_sd_spi().unwrap() };
-    // let start = find_partition_start().unwrap();
-    // log!(100; "found fat partition at: {}\n", &start);
-    // let fat = Fat32::mount(start).unwrap();
-    // print_tree(&fat, &fat.root(), 0);
-    // let mbr = sd_spi::read_sd_block(0).unwrap();
-    // let partition_table = parse_mbr(&mbr);
-    // log!(1024;"{:?}\n", partition_table);
+    unsafe { spi::initialize_spi0() };
+    unsafe { sd_spi::initalize_sd_spi().unwrap() };
+    let start = find_partition_start().unwrap();
+    log!(100; "found fat partition at: {}\n", &start);
+    let fat = Fat32::mount(start).unwrap();
+    print_tree(&fat, &fat.root(), 0);
+    let mbr = sd_spi::read_sd_block(0).unwrap();
+    let partition_table = parse_mbr(&mbr);
+    log!(1024;"{:?}\n", partition_table);
 
     // let partition_bytes = &mbr[0x1be..];
     //
@@ -115,8 +115,15 @@ fn kernel_main() -> ! {
         0x01, 0x00, 0x00, 0xd4, //
         0x48, 0x65, 0x6c, 0x6c, 0x6a, 0x2d, 0x57, 0x6f, 0x72, 0x6c, 0x64, 0x21,
     ];
-    unsafe { userspace::load_program(userspace::syscall_test_program()) };
-    panic!("kernel over");
+    // unsafe { userspace::load_program(userspace::syscall_test_program()) };
+    let shell = fat.open("/system/shell").unwrap();
+    let mut program = [0u8; 64 * 1024];
+    if shell.size as usize > program.len() {
+        panic!("/system/shell is too big: {} bytes", shell.size);
+    }
+    let len = fat.read_file(&shell, &mut program).unwrap();
+    log!(100; "loading /system/shell ({} bytes)\n", len);
+    unsafe { userspace::load_program(&program[..len]) };
     // let test = driver::sdhci::muxing_state();
     // log!(100;"muxing state: {:b}\n", test);
     // let test = driver::sdhci::test_capabilities();

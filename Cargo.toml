@@ -1,5 +1,5 @@
 [workspace]
-members = ["boot", "kernel", "memory", "tools/mk-kernel8"]
+members = ["boot", "gcapi", "kernel", "memory", "shell", "tools/mk-kernel8"]
 resolver = "3"
 
 [profile.release]

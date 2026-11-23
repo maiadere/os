@@ -1,3 +1,6 @@
 /target
 /sd/*
 !/sd/.gitkeep
+!/sd/system/
+/sd/system/*
+!/sd/system/.gitkeep
