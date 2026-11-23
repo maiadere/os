@@ -1,6 +1,6 @@
 #![no_std]
 
-use core::arch::asm;
+use core::arch::{asm, naked_asm};
 
 /// ends the program, never returns
 pub fn exit() -> ! {
@@ -47,14 +47,30 @@ unsafe extern "Rust" {
     fn main();
 }
 
+/// has to be naked_asm:
+/// running a rust function as the first instructions of a program might work, but has
+/// multiple soundess pitfalls, including but not limited to:
+/// - executing rust code without estabilishing invariants of the rust abstract machine
+/// - pointer provenance issues when referring to addresses of linker symbols
+///
+/// this function gets linked as the entry symbol to userspace programs compiled for the OS,
+/// it zeroes the bss segment and jumps to an `extern "Rust"` function called `main`.
+/// If main ever returns, this function calls `svc #0` which is a syscall for exiting the program and
+/// returning control back to the OS
 #[unsafe(no_mangle)]
 #[unsafe(link_section = ".text._start")]
+#[unsafe(naked)]
 extern "C" fn _start() -> ! {
-    unsafe {
-        let start = &raw mut __bss_start;
-        let end = &raw mut __bss_end;
-        start.write_bytes(0, end.addr() - start.addr());
-        main();
-    }
-    exit()
+    naked_asm!(
+        "ldr x0, __bss_start",
+        "ldr x1, __bss_end",
+        "2:",
+        "cmp x0, x1",
+        "beq 3f",
+        "stp xzr, xzr, [x0], #16",
+        "b 2b",
+        "3:",
+        "bl main",
+        "svc #0"
+    );
 }
