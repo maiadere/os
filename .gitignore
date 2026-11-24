@@ -1,4 +1,8 @@
 /target
+.envrc
+/.direnv
+/.vscode
+
 /sd/*
 !/sd/.gitkeep
 !/sd/system/

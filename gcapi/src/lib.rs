@@ -38,6 +38,25 @@ pub fn read_buttons() -> u64 {
     levels
 }
 
+/// loads a program from the given path
+pub fn load_program_from_path(path: &str) -> Result<(), ()> {
+    let res: u64;
+    unsafe {
+        asm!(
+            "svc #5",
+            in("x0") path.as_ptr(),
+            in("x1") path.len(),
+            lateout("x0") res,
+            options(nostack, readonly, preserves_flags),
+        )
+    }
+    if res == 0 {
+        Ok(())
+    } else {
+        Err(())
+    }
+}
+
 unsafe extern "C" {
     static mut __bss_start: u8;
     static mut __bss_end: u8;
