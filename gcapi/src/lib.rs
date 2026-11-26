@@ -2,6 +2,34 @@
 
 use core::arch::{asm, naked_asm};
 
+pub const NAME_CAP: usize = 255;
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct DirEntryRecord {
+    pub name: [u8; NAME_CAP],
+    pub name_len: u8,
+    pub is_dir: u8,
+    pub file_size: u32,
+}
+
+impl DirEntryRecord {
+    pub const EMPTY: Self = Self {
+        name: [0; NAME_CAP],
+        name_len: 0,
+        is_dir: 0,
+        file_size: 0,
+    };
+
+    pub fn name(&self) -> &str {
+        core::str::from_utf8(&self.name[..self.name_len as usize]).unwrap_or("?")
+    }
+
+    pub fn is_dir(&self) -> bool {
+        self.is_dir != 0
+    }
+}
+
 /// ends the program, never returns
 pub fn exit() -> ! {
     unsafe { asm!("svc #0", options(noreturn, nostack)) }
@@ -31,7 +59,8 @@ pub fn dump_registers() {
     unsafe { asm!("svc #3", options(nostack, nomem, preserves_flags)) }
 }
 
-/// returns the raw levels of the button gpio pins, bit n is the level of pin n
+/// returns which buttons are held, bit n is set if the button on gpio pin n is pressed
+/// the kernel normalises the pin polarity, so a set bit always means pressed
 pub fn read_buttons() -> u64 {
     let levels: u64;
     unsafe { asm!("svc #4", out("x0") levels, options(nostack, nomem, preserves_flags)) }
@@ -50,10 +79,30 @@ pub fn load_program_from_path(path: &str) -> Result<(), ()> {
             options(nostack, readonly, preserves_flags),
         )
     }
-    if res == 0 {
-        Ok(())
-    } else {
+    if res == 0 { Ok(()) } else { Err(()) }
+}
+
+/// lists the entries of the directory at 'path' into 'out' while skipping "." and ".."
+///
+/// returns the directory's total entry count, which can be larger than out.len() if the
+/// buffer is too small in which case only the first out.len() entries are written
+pub fn list_dir(path: &str, out: &mut [DirEntryRecord]) -> Result<usize, ()> {
+    let total: u64;
+    unsafe {
+        asm!(
+            "svc #6",
+            in("x0") path.as_ptr(),
+            in("x1") path.len(),
+            in("x2") out.as_mut_ptr(),
+            in("x3") out.len(),
+            lateout("x0") total,
+            options(nostack, preserves_flags),
+        )
+    }
+    if total == u64::MAX {
         Err(())
+    } else {
+        Ok(total as usize)
     }
 }
 

@@ -11,3 +11,4 @@ bench = false
 
 [dependencies]
 gcapi = {path = "../gcapi"}
+heapless = "0.9.1"
