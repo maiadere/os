@@ -33,6 +33,15 @@ build *flags:
 run: (build "--features qemu")
     qemu-system-aarch64 -M raspi4b -serial mon:stdio -kernel {{kernel8}}
 
+[parallel]
+run-wayland: qemu-wayland qemu-gpio-input
+
+qemu-wayland: (build "--features qemu")
+    GDK_BACKEND=x11 qemu-system-aarch64 -M raspi4b -display gtk -serial mon:stdio -kernel {{kernel8}} -qtest tcp:127.0.0.1:5000,server,nowait
+
+qemu-gpio-input:
+    -cargo run -p qemu-gpio-input
+
 asm: (build "--features qemu")
     qemu-system-aarch64 -d in_asm -M raspi4b -kernel {{kernel8}}
 

@@ -1,13 +1,16 @@
+use core::ops::ControlFlow;
 use core::ptr;
 use core::ptr::slice_from_raw_parts;
 
 use aarch64_cpu::registers::ESR_EL1;
 use aarch64_cpu::registers::Readable;
+use gcapi::DirEntryRecord;
 use heapless::CString;
 use heapless::String;
 use heapless::{Vec, format};
 
 use crate::driver::uart0;
+use crate::fat32;
 use crate::log;
 use crate::userspace;
 use crate::userspace::check_userspace_pointer;
@@ -64,6 +67,7 @@ const SYS_GET_TIME: u64 = 2;
 const SYS_DUMP_REGISTERS: u64 = 3;
 const SYS_READ_BUTTONS: u64 = 4;
 const SYS_LOAD_PROGRAM: u64 = 5;
+const SYS_LIST_DIR: u64 = 6;
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut SavedRegisters) {
@@ -82,6 +86,7 @@ unsafe extern "C" fn _synchronous_userspace_exception(register_contents: *mut Sa
             SYS_DUMP_REGISTERS => return sys_dump_registers(regs),
             SYS_READ_BUTTONS => return sys_read_buttons(regs),
             SYS_LOAD_PROGRAM => return sys_load_program_from_path(regs),
+            SYS_LIST_DIR => return sys_list_dir(regs),
             _ => {
                 log!(100; "svc called with unsupported value, exiting process\n");
             }
@@ -143,6 +148,112 @@ fn sys_load_program_from_path(regs: &mut SavedRegisters) {
     } else {
         unreachable!();
     }
+}
+
+// returned in x0 when a directory could not be listed
+const LIST_DIR_ERROR: u64 = u64::MAX;
+
+
+fn userspace_range_ok(addr: usize, len: usize) -> bool {
+    let Some(end) = addr.checked_add(len) else {
+        return false;
+    };
+    check_userspace_pointer(ptr::with_exposed_provenance(addr))
+        && check_userspace_pointer(ptr::with_exposed_provenance(end))
+}
+
+/// returns a DirEntryRecord for the given directory entry, which is what the kernel writes into
+/// the userspace provided buffer in response to a list_dir syscall
+/// since fat32 is an implementation detail, this function is private to the kernel and not exposed to userspace
+fn record_for(entry: &fat32::DirEntry) -> DirEntryRecord {
+    let name = entry.name();
+    let mut record = DirEntryRecord::EMPTY;
+    // the name is guaranteed to fit as per the assertion above, so this slice will always succeed
+    record.name[..name.len()].copy_from_slice(name.as_bytes());
+    record.name_len = name.len() as u8;
+    record.is_dir = entry.is_dir as u8;
+    record.file_size = entry.size;
+    record
+}
+
+// list_dir:
+// x0: pointer to the path
+// x1: length of the path
+// x2: pointer to a buffer of DirEntryRecord
+// x3: the buffer's capacity in entries
+// writes up to x3 entries into the buffer and returns the directory's total entry count in x0,
+// so a caller whose buffer was too small can tell it only got the first x3
+
+// on failure it returns LIST_DIR_ERROR in x0 and logs the reason
+
+fn sys_list_dir(regs: &mut SavedRegisters) {
+    match list_dir(
+        regs.x0 as usize,
+        regs.x1 as usize,
+        regs.x2 as usize,
+        regs.x3 as usize,
+    ) {
+        Ok(total) => regs.x0 = total as u64,
+        Err(reason) => {
+            log!(100; "list_dir: {}\n", reason);
+            regs.x0 = LIST_DIR_ERROR;
+        }
+    }
+}
+
+/// writes a number of entries up to the capacity of the directory at path_ptr into the buffer at buffer,
+/// and returns how many entries the directory holds in total
+fn list_dir(
+    path_ptr: usize,
+    path_len: usize,
+    buffer: usize,
+    capacity: usize,
+) -> Result<usize, &'static str> {
+    if path_len > MAX_PATH_LEN {
+        return Err("path is too long");
+    }
+    if !userspace_range_ok(path_ptr, path_len) {
+        return Err("path pointer is invalid");
+    }
+
+    let buffer_len = capacity
+        .checked_mul(size_of::<DirEntryRecord>())
+        .ok_or("entry count overflows")?;
+    if !userspace_range_ok(buffer, buffer_len) {
+        return Err("buffer pointer is invalid");
+    }
+
+    // copied out so the rest of this works on a kernel owned buffer
+    let mut path_bytes: Vec<u8, MAX_PATH_LEN> = Vec::new();
+    let data = slice_from_raw_parts(ptr::with_exposed_provenance(path_ptr), path_len);
+
+    path_bytes.extend_from_slice(unsafe { &*data }).unwrap();
+    let path = core::str::from_utf8(&path_bytes).map_err(|_| "path is not utf8")?;
+
+    let filesystem = fat32::mounted().ok_or("no filesystem is mounted")?;
+    let directory = filesystem.open(path).map_err(|_| "no such path")?;
+    if !directory.is_dir {
+        return Err("not a directory");
+    }
+
+    let mut total = 0usize;
+    filesystem
+        .read_dir(&directory, |entry| {
+            let name = entry.name();
+            if name != "." && name != ".." {
+                if total < capacity {
+                    let slot = ptr::with_exposed_provenance_mut::<DirEntryRecord>(
+                        buffer + total * size_of::<DirEntryRecord>(),
+                    );
+                    unsafe { slot.write_unaligned(record_for(entry)) };
+                }
+                total += 1;
+            }
+            ControlFlow::<()>::Continue(())
+        })
+        .map_err(|_| "could not read the directory")?;
+
+    Ok(total)
 }
 
 // print:
@@ -219,22 +330,26 @@ fn print_registers(regs: &SavedRegisters, pc: u64) {
         regs.fp, regs.lr, aarch64_cpu::registers::SP_EL0.get(), pc);
 }
 
+/// qemu and hardware have different button polarities
+#[cfg(feature = "qemu")]
+const PRESSED_LEVEL: bool = true;
+#[cfg(not(feature = "qemu"))]
+const PRESSED_LEVEL: bool = false;
+
 // read_buttons:
 // takes no arguments
-// returns the raw levels of the button pins in x0, bit n is the level of gpio pin n (1 = high),
+// returns which buttons are held in x0, bit n is set if the button on gpio pin n is pressed,
 // bits of pins that aren't in userspace::BUTTON_PINS are always 0
-// the pins are pulled up and a pressed button connects its pin to ground,
-// so on real hardware pressed reads as 0 and released as 1
-// in qemu the pull ups don't affect the level and qemu-gpio-input sets the level on a key press,
-// so there pressed reads as 1 and released as 0
+// the two polarities are normalised here so programs always read 1 as pressed, regardless of
+// whether they run on hardware or under qemu
 fn sys_read_buttons(regs: &mut SavedRegisters) {
-    let mut levels = 0u64;
+    let mut pressed = 0u64;
     for pin in crate::userspace::BUTTON_PINS {
-        if crate::driver::gpio::get_pin_state(pin) {
-            levels |= 1 << pin;
+        if crate::driver::gpio::get_pin_state(pin) == PRESSED_LEVEL {
+            pressed |= 1 << pin;
         }
     }
-    regs.x0 = levels;
+    regs.x0 = pressed;
 }
 
 #[unsafe(no_mangle)]

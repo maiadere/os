@@ -27,8 +27,13 @@
         in
         {
           default = pkgs.mkShell {
+            # pkg-config and the x11 libraries are what the x11 crate build script wants, which
+            # device_query, and so tools/qemu-gpio-input, depends on
+            buildInputs = x11Libs;
+
             packages = [
               toolchain
+              pkgs.pkg-config
               pkgs.cargo-binutils
               pkgs.just
               pkgs.qemu
@@ -36,7 +41,7 @@
               pkgs.mtools
               pkgs.util-linux
               pkgs.gdb
-            ] ++ x11Libs;
+            ];
 
             env.RUST_SRC_PATH = "${toolchain}/lib/rustlib/src/rust/library";
             env.LD_LIBRARY_PATH = pkgs.lib.makeLibraryPath x11Libs;
